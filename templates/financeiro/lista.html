@@ -2,6 +2,27 @@
 {% load financeiro_format %}
 {% block title %}{{ titulo }} | My App Financeiro{% endblock %}
 {% block content %}
+<style>
+  .registry-accounts-table{min-width:900px}
+  .registry-cards-table{min-width:1180px}
+  .account-balance-cell{white-space:nowrap}
+  .account-balance-cell .source{display:block;margin-top:2px}
+  .credit-available-cell{white-space:nowrap}
+  .credit-progress-cell{min-width:370px}
+  .credit-progress-content{display:flex;align-items:center;gap:10px;white-space:nowrap}
+  .credit-progress-amount{flex:0 0 auto;min-width:92px}
+  .credit-progress-value{flex:0 0 auto;min-width:62px;font-weight:700;text-align:right}
+  .credit-progress-track{flex:1 1 auto;min-width:110px;height:9px;border-radius:10px;background:#eef2f8;overflow:hidden}
+  .credit-progress-fill{display:block;width:0;height:100%;border-radius:10px}
+  .credit-progress-blue .credit-progress-value{color:var(--blue)}
+  .credit-progress-blue .credit-progress-fill{background:var(--blue)}
+  .credit-progress-orange .credit-progress-value{color:#c56a00}
+  .credit-progress-orange .credit-progress-fill{background:#d97706}
+  .credit-progress-red .credit-progress-value{color:var(--danger)}
+  .credit-progress-red .credit-progress-fill{background:var(--danger)}
+  .credit-progress-neutral .credit-progress-value{color:var(--muted)}
+  .credit-progress-neutral .credit-progress-fill{background:var(--line)}
+</style>
 <header class="top">
   <div><div class="eyebrow">Cadastro</div><h1>{{ titulo }}</h1></div>
   <a class="button" href="{% url novo_url %}" data-modal-url="{% url novo_url %}" data-modal-title="Novo cadastro">
@@ -21,12 +42,12 @@
       <option value="inactive"{% if status_filtro == "inactive" %} selected{% endif %}>Inativos</option>
     </select>
   </form>
-  <table>
+  <table{% if tipo_cadastro == "conta" %} class="registry-accounts-table"{% elif tipo_cadastro == "cartao" %} class="registry-cards-table"{% endif %}>
     <thead>
       {% if tipo_cadastro == "conta" %}
-        <tr><th>Conta</th><th>Banco / tipo</th><th>Saldo inicial</th><th>Situação</th><th>Ações</th></tr>
+        <tr><th>Conta</th><th>Banco / tipo</th><th>Saldo inicial</th><th>Saldo</th><th>Situação</th><th>Ações</th></tr>
       {% elif tipo_cadastro == "cartao" %}
-        <tr><th>Cartão</th><th>Conta de pagamento</th><th>Fechamento / vencimento</th><th>Situação</th><th>Ações</th></tr>
+        <tr><th>Cartão</th><th>Conta de pagamento</th><th>Fechamento / vencimento</th><th>Saldo disponível</th><th>Comprometido</th><th>Situação</th><th>Ações</th></tr>
       {% elif tipo_cadastro == "categoria" %}
         <tr><th>Categoria</th><th>Tipo</th><th>Categoria superior</th><th>Natureza</th><th>Essencialidade</th><th>Resultado</th><th>Situação</th><th>Ações</th></tr>
       {% else %}
@@ -40,10 +61,29 @@
         {% if tipo_cadastro == "conta" %}
           <td>{{ objeto.banco|default:"-" }}<br>{{ objeto.get_tipo_display }}</td>
           <td><span class="{{ objeto.saldo_inicial|classe_valor }}">{{ objeto.saldo_inicial|brl }}</span><br><span class="source">{{ objeto.data_saldo_inicial|date:"d/m/Y" }}</span></td>
+          <td class="account-balance-cell">
+            <span>Atual: <span class="{% if objeto.indicador_saldo.saldo_atual >= 0 %}amount-positive{% else %}amount-negative{% endif %}">{{ objeto.indicador_saldo.saldo_atual|brl_sinal }}</span></span>
+            <span class="source">Projetado: <span class="{% if objeto.indicador_saldo.saldo_projetado >= 0 %}amount-positive{% else %}amount-negative{% endif %}">{{ objeto.indicador_saldo.saldo_projetado|brl_sinal }}</span></span>
+          </td>
           <td>{% if objeto.ativa %}<span class="pill pill-active">Ativo</span>{% else %}<span class="pill pill-inactive">Inativo</span>{% endif %}</td>
         {% elif tipo_cadastro == "cartao" %}
           <td>{{ objeto.conta_pagamento_padrao|default:"-" }}</td>
           <td>{% if objeto.dia_fechamento %}Dia {{ objeto.dia_fechamento }}{% else %}A confirmar{% endif %} / {% if objeto.dia_vencimento %}dia {{ objeto.dia_vencimento }}{% else %}a confirmar{% endif %}</td>
+          {% if objeto.indicador_limite.limite_informado %}
+            <td class="credit-available-cell"><span class="{{ objeto.indicador_limite.disponivel|classe_valor }}">{{ objeto.indicador_limite.disponivel|brl_sinal }}</span></td>
+            <td class="credit-progress-cell credit-progress-{{ objeto.indicador_limite.faixa_percentual }}">
+              <div class="credit-progress-content">
+                <span class="credit-progress-amount {{ objeto.indicador_limite.comprometido|classe_valor:'saida' }}">{{ objeto.indicador_limite.comprometido|brl }}</span>
+                <span class="credit-progress-value">{{ objeto.indicador_limite.percentual|floatformat:2 }}%</span>
+                <div class="credit-progress-track" role="progressbar" aria-label="Limite comprometido do cartão {{ objeto.nome }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ objeto.indicador_limite.percentual_css }}" aria-valuetext="{{ objeto.indicador_limite.percentual|floatformat:2 }}% comprometido, no valor de {{ objeto.indicador_limite.comprometido|brl }}">
+                  <span class="credit-progress-fill" style="width:{{ objeto.indicador_limite.percentual_css }}%"></span>
+                </div>
+              </div>
+            </td>
+          {% else %}
+            <td class="credit-available-cell"><span class="source">Limite não informado</span></td>
+            <td class="credit-progress-cell"><span class="muted">—</span></td>
+          {% endif %}
           <td>{% if objeto.ativo %}<span class="pill pill-active">Ativo</span>{% else %}<span class="pill pill-inactive">Inativo</span>{% endif %}</td>
         {% elif tipo_cadastro == "categoria" %}
           <td>{{ objeto.get_tipo_display }}</td>
@@ -85,7 +125,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="{% if tipo_cadastro == 'categoria' %}8{% else %}5{% endif %}" class="muted">Nenhum cadastro encontrado.</td></tr>
+      <tr><td colspan="{% if tipo_cadastro == 'categoria' %}8{% elif tipo_cadastro == 'conta' %}6{% elif tipo_cadastro == 'cartao' %}7{% else %}5{% endif %}" class="muted">Nenhum cadastro encontrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>

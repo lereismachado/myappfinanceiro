@@ -140,6 +140,8 @@ def _url_lancamentos(
     }
     if ambito != "all":
         parametros["analysis_scope"] = ambito
+    if dados["aplicar_composicao_dashboard"]:
+        parametros["dashboard_context"] = "1"
     if indicador["tipo"] == "essentiality":
         parametros["essentiality"] = indicador["valor"]
     elif indicador["tipo"] == "category" and indicador["categoria_id"] is not None:
@@ -162,6 +164,7 @@ def consultar_detalhamento_dashboard(
     scope="all",
     date_from=None,
     date_to=None,
+    dashboard_context=False,
 ) -> dict:
     scope = scope if scope in Ambito.values else "all"
     if computacao not in {"COMPUTA", "NAO_COMPUTA"}:
@@ -176,6 +179,7 @@ def consultar_detalhamento_dashboard(
         computacao=computacao,
         date_from=date_from,
         date_to=date_to,
+        aplicar_composicao_dashboard=dashboard_context,
     )
     indicador = _resolver_indicador(str(tipo or ""), str(valor or ""), dados["categorias"])
     agrupadas = defaultdict(list)

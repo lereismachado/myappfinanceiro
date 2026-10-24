@@ -35,8 +35,17 @@ def ciclos_disponiveis(usuario, ciclo_solicitado: str | None = None) -> list[str
     return sorted(ciclos, reverse=True)
 
 
-def resolver_filtros_financeiros(usuario, periodo=None, conta_id=None, cartao_id=None) -> dict:
-    contas = list(Conta.objects.filter(usuario=usuario).order_by("nome", "id"))
+def resolver_filtros_financeiros(
+    usuario,
+    periodo=None,
+    conta_id=None,
+    cartao_id=None,
+    aplicar_composicao_dashboard=False,
+) -> dict:
+    contas_queryset = Conta.objects.filter(usuario=usuario)
+    if aplicar_composicao_dashboard:
+        contas_queryset = contas_queryset.filter(nao_compoe_dashboard=False)
+    contas = list(contas_queryset.order_by("nome", "id"))
     cartoes = list(
         Cartao.objects.filter(usuario=usuario)
         .select_related("conta_pagamento_padrao")

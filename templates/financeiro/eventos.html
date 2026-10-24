@@ -29,6 +29,7 @@
     </summary>
     <div class="collapsible-content">
     <form id="transactionsFilters" class="transactions-filters" method="get" aria-label="Filtros dos lançamentos">
+    {% if dashboard_context %}<input type="hidden" name="dashboard_context" value="1">{% endif %}
     {% if analysis_active %}<input type="hidden" name="analysis_type" value="{{ analysis_type }}"><input type="hidden" name="analysis_value" value="{{ analysis_value }}"><input type="hidden" name="analysis_nature" value="{{ analysis_nature }}">{% if analysis_scope != "all" %}<input type="hidden" name="analysis_scope" value="{{ analysis_scope }}">{% endif %}{% endif %}
     <div class="transactions-filters-grid">
       <label for="dateFromFilter">Data inicial

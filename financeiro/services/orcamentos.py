@@ -139,12 +139,17 @@ def _chave_contribuicao(contribuicao, categorias: dict) -> tuple[str, int | None
     return competencia, _categoria_superior_id(contribuicao.categoria, categorias), ambito
 
 
-def _consolidar_realizados(usuario, meses: set[str]) -> tuple[dict, dict]:
+def _consolidar_realizados(
+    usuario,
+    meses: set[str],
+    dashboard_context=False,
+) -> tuple[dict, dict]:
     data_inicial, data_final = _limites_meses(meses)
     dados = carregar_contribuicoes_dashboard(
         usuario,
         date_from=data_inicial,
         date_to=data_final,
+        aplicar_composicao_dashboard=dashboard_context,
     )
     realizados = defaultdict(lambda: ZERO)
     for contribuicao in dados["contribuicoes"]:
@@ -320,6 +325,7 @@ def _urls_detalhamento_categoria(
     mes_referencia: str,
     categoria_id: int,
     ambito: str = "all",
+    dashboard_context=False,
 ) -> tuple[str, str]:
     ano, mes = (int(parte) for parte in mes_referencia.split("-"))
     data_inicial = date(ano, mes, 1)
@@ -348,26 +354,41 @@ def _urls_detalhamento_categoria(
     if ambito != "all":
         detalhe["scope"] = ambito
         lancamentos["analysis_scope"] = ambito
+    if dashboard_context:
+        detalhe["dashboard_context"] = "1"
+        lancamentos["dashboard_context"] = "1"
     return (
         f"{reverse('dashboard_detalhamento')}?{urlencode(detalhe)}",
         f"{reverse('eventos')}?{urlencode(lancamentos)}",
     )
 
 
-def _urls_detalhamento(orcamento: Orcamento) -> tuple[str, str]:
+def _urls_detalhamento(
+    orcamento: Orcamento,
+    dashboard_context=False,
+) -> tuple[str, str]:
     return _urls_detalhamento_categoria(
         orcamento.mes,
         orcamento.categoria_id,
         orcamento.ambito,
+        dashboard_context=dashboard_context,
     )
 
 
-def enriquecer_orcamentos_com_realizado(usuario, orcamentos: list[Orcamento]) -> list[Orcamento]:
+def enriquecer_orcamentos_com_realizado(
+    usuario,
+    orcamentos: list[Orcamento],
+    dashboard_context=False,
+) -> list[Orcamento]:
     if not orcamentos:
         return orcamentos
 
     meses = {orcamento.mes for orcamento in orcamentos}
-    realizados, _ = _consolidar_realizados(usuario, meses)
+    realizados, _ = _consolidar_realizados(
+        usuario,
+        meses,
+        dashboard_context=dashboard_context,
+    )
 
     for orcamento in orcamentos:
         chave = (orcamento.mes, orcamento.categoria_id, orcamento.ambito)
@@ -382,17 +403,24 @@ def enriquecer_orcamentos_com_realizado(usuario, orcamentos: list[Orcamento]) ->
             else "0.00"
         )
         orcamento.faixa_percentual = _faixa_percentual(percentual)
-        orcamento.detalhe_url, orcamento.lancamentos_url = _urls_detalhamento(orcamento)
+        orcamento.detalhe_url, orcamento.lancamentos_url = _urls_detalhamento(
+            orcamento,
+            dashboard_context=dashboard_context,
+        )
     return orcamentos
 
 
-def resumir_orcamento_dashboard(usuario, mes: str) -> dict:
+def resumir_orcamento_dashboard(usuario, mes: str, dashboard_context=False) -> dict:
     orcamentos = list(
         Orcamento.objects.filter(usuario=usuario, mes=mes)
         .select_related("categoria", "categoria__categoria_pai")
         .order_by("categoria__nome", "ambito", "id")
     )
-    enriquecer_orcamentos_com_realizado(usuario, orcamentos)
+    enriquecer_orcamentos_com_realizado(
+        usuario,
+        orcamentos,
+        dashboard_context=dashboard_context,
+    )
 
     consolidados = {}
     for orcamento in orcamentos:
@@ -437,6 +465,7 @@ def resumir_orcamento_dashboard(usuario, mes: str) -> dict:
         item["detalhe_url"], item["lancamentos_url"] = _urls_detalhamento_categoria(
             mes,
             item["categoria_id"],
+            dashboard_context=dashboard_context,
         )
         categorias.append(item)
 

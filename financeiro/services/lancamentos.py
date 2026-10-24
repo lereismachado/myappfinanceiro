@@ -376,11 +376,18 @@ def consultar_lancamentos(
     analysis_nature="all",
     analysis_scope="all",
     group_card_invoices=False,
+    dashboard_context=False,
 ) -> dict:
     origem = origem if origem in {"all", "CONTA", "CARTAO"} else "all"
     situacao = situacao if situacao in {"all", Situacao.REALIZADO, Situacao.PREVISTO} else "all"
     periodo_filtro = periodo if CICLO_PATTERN.fullmatch(str(periodo or "")) else ""
-    filtros = resolver_filtros_financeiros(usuario, periodo_filtro or None, conta_id, cartao_id)
+    filtros = resolver_filtros_financeiros(
+        usuario,
+        periodo_filtro or None,
+        conta_id,
+        cartao_id,
+        aplicar_composicao_dashboard=dashboard_context,
+    )
     if data_inicial is None and data_final is None:
         hoje = timezone.localdate()
         inicio, fim_exclusivo = limites_periodo(hoje.strftime("%Y-%m"))
@@ -439,6 +446,8 @@ def consultar_lancamentos(
                 "liquidacao_set__titulo__fatura__cartao",
             )
         )
+        if dashboard_context:
+            movimentos = movimentos.filter(conta__nao_compoe_dashboard=False)
         if periodo_filtro:
             periodo_inicio, periodo_fim = limites_periodo(periodo_filtro)
             movimentos = movimentos.filter(evento__data__gte=periodo_inicio, evento__data__lt=periodo_fim)
@@ -464,6 +473,8 @@ def consultar_lancamentos(
                 .select_related("conta", "evento__pessoa")
                 .prefetch_related("evento__rateios__categoria", "evento__itemimportacao_set")
             )
+            if dashboard_context:
+                titulos = titulos.filter(conta__nao_compoe_dashboard=False)
             if periodo_filtro:
                 periodo_inicio, periodo_fim = limites_periodo(periodo_filtro)
                 titulos = titulos.filter(evento__data__gte=periodo_inicio, evento__data__lt=periodo_fim)
@@ -514,6 +525,7 @@ def consultar_lancamentos(
             scope=analysis_scope,
             date_from=inicio,
             date_to=fim,
+            dashboard_context=dashboard_context,
         )
         linhas = list(detalhe_analitico["linhas"])
 
@@ -602,6 +614,8 @@ def consultar_lancamentos(
     }
     if group_card_invoices:
         parametros_filtro["group_card_invoices"] = "1"
+    if dashboard_context:
+        parametros_filtro["dashboard_context"] = "1"
 
     return {
         **{chave: valor for chave, valor in filtros.items() if chave not in {"cartoes_filtrados", "periodo_selecionado", "periodo_rotulo"}},
@@ -637,6 +651,7 @@ def consultar_lancamentos(
         "analysis_label": detalhe_analitico["titulo_detalhamento"] if detalhe_analitico else "",
         "total_indicador": sum((linha.valor for linha in filtradas), ZERO) if detalhe_analitico else ZERO,
         "group_card_invoices": group_card_invoices,
+        "dashboard_context": dashboard_context,
         "filtros_query": urlencode(parametros_filtro),
     }
 

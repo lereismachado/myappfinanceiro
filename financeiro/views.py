@@ -47,7 +47,12 @@ from .services.cartoes_faturas import (
     editar_parcela_cartao,
     sincronizar_vencimentos_faturas_abertas_cartao,
 )
-from .services.dashboard import consultar_dashboard
+from .services.dashboard import (
+    calcular_limites_cartoes,
+    calcular_posicao_contas,
+    consultar_dashboard,
+    limites_periodo,
+)
 from .services.importacao_ofx import (
     aplicar_alteracoes_lote,
     aplicar_classificacao_primeira_revisao,
@@ -127,6 +132,7 @@ def dashboard(request):
     orcamento_dashboard = resumir_orcamento_dashboard(
         request.user,
         contexto["data_final"].strftime("%Y-%m"),
+        dashboard_context=True,
     )
     contexto["orcamento_dashboard"] = orcamento_dashboard
     contexto["pontos_atencao"] = (
@@ -153,6 +159,7 @@ def dashboard_detalhamento(request):
             natureza=request.GET.get("nature", "all"),
             computacao=request.GET.get("computes", "COMPUTA"),
             scope=request.GET.get("scope", "all"),
+            dashboard_context=request.GET.get("dashboard_context") == "1",
         )
     except DetalhamentoDashboardInvalido as exc:
         raise Http404("Detalhamento não encontrado.") from exc
@@ -192,6 +199,7 @@ def _url_retorno_lancamento(request, periodo: str, destino_padrao="eventos"):
             "analysis_nature",
             "analysis_scope",
             "group_card_invoices",
+            "dashboard_context",
         ):
             valor = request.GET.get(nome)
             if valor not in (None, ""):
@@ -224,6 +232,7 @@ def lancamentos(request):
             analysis_nature=request.GET.get("analysis_nature", "all"),
             analysis_scope=request.GET.get("analysis_scope", "all"),
             group_card_invoices=request.GET.get("group_card_invoices"),
+            dashboard_context=request.GET.get("dashboard_context") == "1",
         )
     except DetalhamentoDashboardInvalido as exc:
         raise Http404("Detalhamento não encontrado.") from exc
@@ -628,7 +637,14 @@ class ContaListView(UsuarioMixin, ListView):
         return filtrar_cadastro(queryset, self.request)
 
     def get_context_data(self, **kwargs):
-        return cadastro_context(super().get_context_data(**kwargs), self.request, "Contas financeiras", "conta_nova", "conta")
+        context = super().get_context_data(**kwargs)
+        contas = list(context["objetos"])
+        hoje = timezone.localdate()
+        _, fim_mes_exclusivo = limites_periodo(hoje.strftime("%Y-%m"))
+        for indicador in calcular_posicao_contas(self.request.user, contas, hoje, fim_mes_exclusivo):
+            indicador["conta"].indicador_saldo = indicador
+        context["objetos"] = contas
+        return cadastro_context(context, self.request, "Contas financeiras", "conta_nova", "conta")
 
 
 class ContaCreateView(UsuarioMixin, CreateView):
@@ -661,12 +677,19 @@ class CartaoListView(UsuarioMixin, ListView):
     model = Cartao
     template_name = "financeiro/lista.html"
     context_object_name = "objetos"
+
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related("conta_pagamento_padrao")
         return filtrar_cadastro(queryset, self.request, active_field="ativo")
 
     def get_context_data(self, **kwargs):
-        return cadastro_context(super().get_context_data(**kwargs), self.request, "Cadastro de cartões", "cartao_novo", "cartao")
+        context = super().get_context_data(**kwargs)
+        cartoes = list(context["objetos"])
+        ciclo_atual = timezone.localdate().strftime("%Y-%m")
+        for indicador in calcular_limites_cartoes(self.request.user, cartoes, ciclo_atual):
+            indicador["cartao"].indicador_limite = indicador
+        context["objetos"] = cartoes
+        return cadastro_context(context, self.request, "Cadastro de cartões", "cartao_novo", "cartao")
 
 
 class CartaoCreateView(UsuarioMixin, CreateView):

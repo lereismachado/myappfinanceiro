@@ -794,7 +794,7 @@ def _faturas_fechadas_sem_baixa(usuario, cartoes: list[Cartao], ciclo: str) -> D
     )
 
 
-def _posicao_contas(usuario, contas: list[Conta], hoje: date, fim_previsao: date) -> list[dict]:
+def calcular_posicao_contas(usuario, contas: list[Conta], hoje: date, fim_previsao: date) -> list[dict]:
     """Monta saldos por conta sem misturar fluxo efetivo e previsões."""
     if not contas:
         return []
@@ -884,7 +884,17 @@ def _valor_parcela_comprometida(parcela: ParcelaCartao) -> Decimal:
     return ZERO
 
 
-def _limites_cartoes(usuario, cartoes: list[Cartao], ciclo_base: str) -> list[dict]:
+def _faixa_comprometimento(percentual: Decimal | None) -> str:
+    if percentual is None:
+        return "neutral"
+    if percentual <= Decimal("80.00"):
+        return "blue"
+    if percentual <= Decimal("90.00"):
+        return "orange"
+    return "red"
+
+
+def calcular_limites_cartoes(usuario, cartoes: list[Cartao], ciclo_base: str) -> list[dict]:
     """Calcula a obrigação conhecida por cartão sem contar fatura e itens duas vezes."""
     if not cartoes:
         return []
@@ -975,6 +985,7 @@ def _limites_cartoes(usuario, cartoes: list[Cartao], ciclo_base: str) -> list[di
             "limite_informado": limite_informado,
             "percentual": percentual,
             "percentual_css": _percentual_css(min(percentual, HUNDRED)) if percentual is not None else "0.00",
+            "faixa_percentual": _faixa_comprometimento(percentual),
             "disponivel": disponivel,
             "excedente": max(comprometido - cartao.limite, ZERO) if limite_informado else ZERO,
             "inclui_estimativas": estimativas_por_cartao[cartao.pk] > ZERO,
@@ -1015,11 +1026,18 @@ def carregar_contribuicoes_dashboard(
     computacao="COMPUTA",
     date_from=None,
     date_to=None,
+    aplicar_composicao_dashboard=False,
 ) -> dict:
     data_inicial, data_final = _intervalo_dashboard(date_from, date_to, periodo)
     fim_exclusivo = data_final + timedelta(days=1)
     periodo_referencia = data_final.strftime("%Y-%m")
-    filtros = resolver_filtros_financeiros(usuario, periodo_referencia, conta_id, cartao_id)
+    filtros = resolver_filtros_financeiros(
+        usuario,
+        periodo_referencia,
+        conta_id,
+        cartao_id,
+        aplicar_composicao_dashboard=aplicar_composicao_dashboard,
+    )
     contas_filtradas = [filtros["conta_selecionada"]] if filtros["conta_selecionada"] else filtros["contas"]
     origem = _normalizar_filtro(origem, ORIGENS)
     natureza = _normalizar_filtro(natureza, NATUREZAS_ANALITICAS)
@@ -1041,6 +1059,7 @@ def carregar_contribuicoes_dashboard(
         "parcelas_carregadas": parcelas_carregadas,
         "movimentos": movimentos,
         "parcelas": parcelas,
+        "aplicar_composicao_dashboard": aplicar_composicao_dashboard,
         "contribuicoes": gerar_contribuicoes_analiticas(
             movimentos,
             parcelas,
@@ -1070,6 +1089,7 @@ def consultar_dashboard(
         natureza=natureza,
         date_from=date_from,
         date_to=date_to,
+        aplicar_composicao_dashboard=True,
     )
     data_inicial = dados_analiticos["data_inicial"]
     data_final = dados_analiticos["data_final"]
@@ -1146,8 +1166,8 @@ def consultar_dashboard(
         periodo_referencia,
     )
     hoje = timezone.localdate()
-    posicao_contas = _posicao_contas(usuario, contas_filtradas, hoje, fim_exclusivo)
-    limites_cartoes = _limites_cartoes(usuario, filtros["cartoes_filtrados"], hoje.strftime("%Y-%m"))
+    posicao_contas = calcular_posicao_contas(usuario, contas_filtradas, hoje, fim_exclusivo)
+    limites_cartoes = calcular_limites_cartoes(usuario, filtros["cartoes_filtrados"], hoje.strftime("%Y-%m"))
 
     simulador = _simulador_formatado(categorias_formatadas)
     base_simulador = next(
@@ -1180,6 +1200,7 @@ def consultar_dashboard(
         "card": cartao_query,
         "origin": origem,
         "nature": natureza,
+        "dashboard_context": "1",
     })
     lancamentos_base_query = urlencode({
         "date_from": data_inicial.strftime("%d/%m/%Y"),
@@ -1188,6 +1209,7 @@ def consultar_dashboard(
         "card": cartao_query,
         "origin": {"account": "CONTA", "card": "CARTAO"}.get(origem, "all"),
         "analysis_nature": natureza,
+        "dashboard_context": "1",
     })
 
     return {

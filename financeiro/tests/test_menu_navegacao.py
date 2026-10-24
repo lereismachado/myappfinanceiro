@@ -78,6 +78,14 @@ class MenuNavegacaoTests(TestCase):
         self.assertGreaterEqual(resposta.content.count(b'<svg aria-hidden="true"'), 10)
         self.assertContains(resposta, '<button type="submit"><svg aria-hidden="true"', html=False)
 
+    def test_versao_aparece_abaixo_do_logout_e_e_ocultada_no_layout_movel(self):
+        resposta = self.client.get(reverse("dashboard"))
+        conteudo = resposta.content.decode()
+
+        self.assertContains(resposta, '<div class="app-version">v2.10.25</div>', html=False)
+        self.assertGreater(conteudo.index('<div class="app-version">'), conteudo.index('class="nav-logout"'))
+        self.assertContains(resposta, "aside p,.aside-foot,.app-version{display:none}", html=False)
+
     def test_links_do_menu_acionam_o_loading_existente(self):
         resposta = self.client.get(reverse("dashboard"))
 

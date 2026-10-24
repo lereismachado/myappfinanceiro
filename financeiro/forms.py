@@ -148,8 +148,17 @@ class ContaForm(forms.ModelForm):
             "saldo_inicial",
             "data_saldo_inicial",
             "limite_credito",
+            "nao_compoe_dashboard",
             "ativa",
         ]
+        labels = {"nao_compoe_dashboard": "Não compõe a Visão Geral"}
+        help_texts = {
+            "nao_compoe_dashboard": (
+                "Quando marcada, apenas os indicadores da Visão Geral deixam de considerar o saldo e as "
+                "movimentações desta conta. Lançamentos, importações, cálculo de saldos e demais "
+                "funcionalidades permanecem inalterados."
+            ),
+        }
         widgets = {"data_saldo_inicial": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"})}
 
     def __init__(self, *args, **kwargs):

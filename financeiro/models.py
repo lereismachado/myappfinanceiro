@@ -56,6 +56,7 @@ class Conta(TimestampedModel):
     saldo_inicial = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     data_saldo_inicial = models.DateField(null=True, blank=True)
     limite_credito = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    nao_compoe_dashboard = models.BooleanField(default=False)
     ativa = models.BooleanField(default=True)
 
     class Meta:
