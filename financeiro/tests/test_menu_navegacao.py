@@ -29,6 +29,8 @@ class MenuNavegacaoTests(TestCase):
         self.assertContains(resposta, "<span>Pessoas</span>", html=False)
         self.assertContains(resposta, f'href="{reverse("regras_categoria")}"', html=False)
         self.assertContains(resposta, "<span>Regras</span>", html=False)
+        self.assertContains(resposta, f'href="{reverse("integracoes")}"', html=False)
+        self.assertContains(resposta, "<span>Integrações</span>", html=False)
         self.assertNotContains(resposta, "Cadastro de cartões")
 
     def test_cadastros_fica_fechado_fora_da_secao(self):
@@ -44,6 +46,7 @@ class MenuNavegacaoTests(TestCase):
             ("categorias", "Categorias"),
             ("pessoas", "Pessoas"),
             ("regras_categoria", "Regras"),
+            ("integracoes", "Integrações"),
         )
 
         for nome_url, rotulo in casos:

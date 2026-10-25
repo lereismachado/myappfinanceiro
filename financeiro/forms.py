@@ -1409,3 +1409,11 @@ class AplicacaoLoteForm(forms.Form):
         if cleaned.get("somente_status") == "SELECIONADOS" and not self.itens_selecionados:
             raise forms.ValidationError("Selecione ao menos um item da importação.")
         return cleaned
+
+
+class TokenAcessoApiForm(forms.Form):
+    nome = forms.CharField(
+        label="Nome do token",
+        max_length=120,
+        help_text="Use um nome que identifique a automação, por exemplo: n8n WhatsApp.",
+    )

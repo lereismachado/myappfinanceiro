@@ -928,6 +928,104 @@ class RegraCategoriaCondicao(TimestampedModel):
                 raise ValidationError({"valor": "O cadastro selecionado não pertence ao usuário da regra."})
 
 
+class TokenAcessoApi(TimestampedModel):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="tokens_acesso_api",
+        on_delete=models.CASCADE,
+    )
+    nome = models.CharField(max_length=120)
+    prefixo = models.CharField(max_length=24, unique=True)
+    hash_token = models.CharField(max_length=64, unique=True)
+    ativo = models.BooleanField(default=True)
+    ultimo_uso_em = models.DateTimeField(null=True, blank=True)
+    revogado_em = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-criado_em", "-id"]
+        indexes = [
+            models.Index(fields=["usuario", "ativo"], name="fin_token_usuario_ativo_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.nome} ({self.prefixo})"
+
+
+class NotificacaoCentral(TimestampedModel):
+    class Tipo(models.TextChoices):
+        PREVISAO_DIARIA = "PREVISAO_DIARIA", "Previsao diaria"
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="notificacoes_centrais",
+        on_delete=models.CASCADE,
+    )
+    tipo = models.CharField(max_length=30, choices=Tipo.choices)
+    data_referencia = models.DateField()
+    titulo = models.CharField(max_length=180)
+    mensagem = models.TextField()
+    conteudo = models.JSONField(default=dict)
+    hash_conteudo = models.CharField(max_length=64)
+    lida_em = models.DateTimeField(null=True, blank=True)
+    arquivada_em = models.DateTimeField(null=True, blank=True)
+    arquivada_automaticamente = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-data_referencia", "-atualizado_em", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["usuario", "tipo", "data_referencia"],
+                name="uniq_notificacao_usuario_tipo_data",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["usuario", "arquivada_em", "lida_em"],
+                name="fin_notif_usuario_estado_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.titulo} - {self.usuario}"
+
+
+class ExecucaoCentralNotificacao(TimestampedModel):
+    class Status(models.TextChoices):
+        PROCESSANDO = "PROCESSANDO", "Processando"
+        SUCESSO = "SUCESSO", "Sucesso"
+        PARCIAL = "PARCIAL", "Parcial"
+        ERRO = "ERRO", "Erro"
+
+    tipo = models.CharField(max_length=30, choices=NotificacaoCentral.Tipo.choices)
+    data_referencia = models.DateField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PROCESSANDO)
+    tentativas = models.PositiveSmallIntegerField(default=0)
+    proxima_tentativa_em = models.DateTimeField(null=True, blank=True)
+    iniciado_em = models.DateTimeField(null=True, blank=True)
+    concluido_em = models.DateTimeField(null=True, blank=True)
+    bloqueado_ate = models.DateTimeField(null=True, blank=True)
+    usuarios_processados = models.PositiveIntegerField(default=0)
+    notificacoes_criadas = models.PositiveIntegerField(default=0)
+    notificacoes_atualizadas = models.PositiveIntegerField(default=0)
+    notificacoes_arquivadas = models.PositiveIntegerField(default=0)
+    erros = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ["-data_referencia", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tipo", "data_referencia"],
+                name="uniq_execucao_notificacao_tipo_data",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["status", "data_referencia"], name="fin_exec_notif_status_data_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.data_referencia:%d/%m/%Y}"
+
+
 class Orcamento(TimestampedModel):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)

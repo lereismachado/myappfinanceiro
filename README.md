@@ -123,16 +123,26 @@ Uma sugestão de vínculo não significa conciliação concluída. Somente uma r
 
 ## Execução com Docker
 
-O Compose contém somente o serviço web. O PostgreSQL é externo e continua configurado pelas variáveis `POSTGRES_*` do `.env`.
+O Compose contém o serviço web e o agendador da central de notificações. O PostgreSQL é externo e continua configurado pelas variáveis `POSTGRES_*` do `.env`.
 
 ```bash
 docker compose build
 docker compose up -d
 docker compose ps
 docker compose logs -f web
+docker compose logs -f notificacoes
 ```
 
-O container está configurado para aplicar migrations antes de iniciar o Gunicorn e publicar a aplicação na porta `8099`. Os endereços configurados nesta instalação são:
+O container web aplica migrations antes de iniciar o Gunicorn e publicar a aplicação na porta `8099`. O serviço `notificacoes` executa separadamente, consulta as previsões do dia às `06:00` no fuso configurado pelo Django e recupera a execução quando o ambiente volta depois desse horário.
+
+Para conferir o agendamento uma vez ou reprocessar deliberadamente a data atual:
+
+```bash
+python manage.py executar_central_notificacoes --once
+python manage.py executar_central_notificacoes --once --forcar
+```
+
+Os endereços configurados nesta instalação são:
 
 ```text
 http://100.127.41.45:8099

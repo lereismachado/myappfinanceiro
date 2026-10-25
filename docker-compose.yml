@@ -24,3 +24,20 @@ services:
       --workers 3
       --access-logfile -
       --error-logfile -"
+
+  notificacoes:
+    build:
+      context: .
+    container_name: my-app-financeiro-notificacoes
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_DEBUG: "False"
+      CENTRAL_NOTIFICACOES_HORARIO: "06:00"
+      CENTRAL_NOTIFICACOES_INTERVALO_VERIFICACAO: "60"
+      CENTRAL_NOTIFICACOES_INTERVALO_RETRY: "900"
+      CENTRAL_NOTIFICACOES_MAX_TENTATIVAS: "3"
+    depends_on:
+      - web
+    command: python manage.py executar_central_notificacoes

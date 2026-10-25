@@ -3,7 +3,7 @@
 {% block title %}Visão geral | My App Financeiro{% endblock %}
 {% block content %}
 <style>
-  .overview-page{max-width:1600px}.overview-page .top{margin-bottom:22px}.overview-period{display:flex;align-items:end;gap:12px}.overview-period label{display:grid;gap:5px;font-size:14px}.overview-period input{width:140px}.overview-date-control{width:140px}.overview-values-toggle{margin-bottom:1px;color:var(--muted)}
+  .overview-page{max-width:1600px}.overview-page .top{margin-bottom:22px}.overview-period{display:flex;align-items:end;gap:12px}.overview-period label{display:grid;gap:5px;font-size:14px}.overview-period input{width:140px}.overview-date-control{width:140px}.overview-header-actions{display:flex;align-items:center;gap:4px;margin-bottom:1px}.overview-values-toggle{color:var(--muted)}.overview-notifications-toggle{position:relative;color:var(--muted)}.overview-notifications-badge{position:absolute;top:-7px;right:-8px;display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border:2px solid #fff;border-radius:999px;background:var(--danger);color:#fff;font-size:10px;font-weight:750;line-height:1}.overview-notifications-badge[hidden]{display:none}
   .overview-filters{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:22px}.overview-filter-grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr)) auto;gap:12px;align-items:end}.overview-filter-grid label,.analysis-filter label{display:grid;gap:5px;font-size:14px}.overview-filter-grid .secondary{justify-self:end}.overview-filter-note{font-size:14px;color:var(--muted);margin:10px 0 0}
   .overview-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:0 0 18px}.overview-heading h2{margin:0}.overview-page .kpis{margin-bottom:22px}.overview-page .card .label{font-size:14px;color:var(--muted)}.overview-page .value{letter-spacing:-.7px}
   .overview-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:22px}.overview-grid.equal{grid-template-columns:1fr 1fr}.overview-grid.three{grid-template-columns:repeat(3,1fr)}.overview-section{margin-top:22px}.overview-section:first-of-type{margin-top:0}.overview-empty{color:var(--muted);font-size:14px;margin:10px 0}.overview-helper{font-size:14px;color:var(--muted);margin:15px 0 0}
@@ -18,9 +18,10 @@
   .cash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.cash-item{padding:15px;background:#f7f9fc;border-radius:8px}.cash-item .value{font-size:23px}.onboarding{margin-top:22px}.onboarding .daily-actions{display:grid;gap:16px}.daily-action{border-left:3px solid #35b99a;padding-left:14px}.daily-action h3{font-size:16px;margin:0 0 7px}.daily-action p{margin:0}.overview-footer{font-size:14px;color:var(--muted);margin-top:28px}
   .cash-budget-grid{align-items:start}.budget-panel{display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden;min-height:0}.budget-panel h2,.budget-panel h2 *,.budget-item,.budget-item *{font-weight:400}.budget-content{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0}.budget-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:11px 20px;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding-right:5px}.budget-item{padding:7px;margin:0;min-width:0}.budget-item-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;margin-bottom:4px;font-size:14px}.budget-item-budget{color:var(--muted);font-size:12px;white-space:nowrap;text-align:right}.budget-expense-row{display:grid;grid-template-columns:auto minmax(40px,1fr) auto;gap:9px;align-items:center;font-size:12px}.budget-expense-row>span:first-child{color:var(--muted)}.budget-expense-values{color:var(--muted);white-space:nowrap;text-align:right}.budget-bar-track{height:7px;background:#eef2f8;border-radius:8px;overflow:hidden}.budget-bar-fill{display:block;width:0;height:100%;border-radius:8px}.budget-bar-fill.blue{background:var(--blue)}.budget-bar-fill.orange{background:#d97706}.budget-bar-fill.red{background:var(--danger)}.budget-bar-fill.neutral{background:var(--line)}.overview-section.simulator-panel{margin-top:22px}
   .dashboard-detail-dialog{max-width:1240px;width:calc(100% - 32px);padding:0;overflow:hidden}.dashboard-detail-dialog .dialog-head{padding:20px 24px;margin:0;border-bottom:1px solid var(--line)}.dashboard-detail-body{padding:22px 24px;max-height:calc(90vh - 78px);overflow:auto}.dashboard-detail-loading{display:flex;align-items:center;justify-content:center;gap:12px;min-height:180px;color:var(--muted)}.dashboard-detail-summary{display:flex;justify-content:space-between;align-items:start;gap:20px;margin-bottom:18px}.dashboard-detail-summary h3{font-size:22px;margin:4px 0}.dashboard-detail-summary p{margin:0}.dashboard-detail-total{text-align:right;display:grid;gap:4px}.dashboard-detail-total strong{font-size:22px;white-space:nowrap}.dashboard-detail-actions{display:flex;justify-content:flex-end;margin-top:20px}.dashboard-detail-dialog .transactions-count{margin:0 0 10px}.dashboard-detail-dialog .transactions-table-wrap{overflow-x:auto}.dashboard-detail-dialog .transactions-table{min-width:850px}.dashboard-detail-dialog .transactions-table td:first-child,.dashboard-detail-dialog .transactions-table .money{white-space:nowrap}.dashboard-detail-dialog .transactions-table .description{min-width:250px;max-width:430px;overflow-wrap:anywhere}.dashboard-detail-dialog .transactions-table .source-name,.dashboard-detail-dialog .transactions-table .category-cell{min-width:170px}.dashboard-detail-dialog .transactions-table .pill{display:inline-block;margin-top:5px;background:#edf2fa;color:var(--blue)}.dashboard-detail-dialog .transactions-table .transaction-main-row.has-observation td{border-bottom:0;padding-bottom:5px}.dashboard-detail-dialog .transactions-table .transaction-observation-row td{padding-top:0}.dashboard-detail-dialog .transactions-table .transaction-observation{color:var(--muted);font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.dashboard-detail-dialog .transactions-table .transaction-observation strong{color:var(--ink)}.dashboard-detail-dialog .transactions-table .empty{padding:28px;text-align:center;color:var(--muted)}.dashboard-detail-error{min-height:180px;display:grid;place-items:center;text-align:center}.dashboard-detail-error p{color:var(--muted)}
+  .notification-center-dialog{inset:0 0 0 auto;margin:0 0 0 auto;width:min(540px,100%);height:100dvh;max-height:none;padding:0;border-radius:14px 0 0 14px;overflow:hidden}.notification-center-shell{display:grid;grid-template-rows:auto auto minmax(0,1fr);height:100%}.notification-center-head{padding:20px 22px;margin:0;border-bottom:1px solid var(--line)}.notification-center-head h2{margin:0}.notification-center-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line)}.notification-tabs{display:flex;gap:4px}.notification-tab{width:auto;border:0;border-radius:7px;background:transparent;color:var(--muted);padding:7px 9px;font-size:13px;font-weight:700}.notification-tab[aria-selected="true"]{background:#edf2fa;color:var(--blue)}.notification-mark-all{width:auto}.notification-center-body{overflow-y:auto;padding:16px 18px 24px}.notification-list{display:grid;gap:12px}.notification-item{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}.notification-item.is-unread{border-left:4px solid var(--blue)}.notification-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:15px;cursor:pointer;list-style:none}.notification-summary::-webkit-details-marker{display:none}.notification-summary h3{font-size:16px;margin:0 0 4px}.notification-summary time{font-size:12px;color:var(--muted);white-space:nowrap}.notification-content{padding:0 15px 15px;border-top:1px solid #edf1f6}.notification-message{margin:13px 0;color:var(--muted);font-size:14px}.notification-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}.notification-total{padding:9px;background:#f7f9fc;border-radius:7px;font-size:12px}.notification-total strong{display:block;margin-top:3px;font-size:14px}.notification-account{padding:11px 0;border-top:1px solid var(--line)}.notification-account-head{display:flex;justify-content:space-between;gap:12px}.notification-account-head strong:last-child{white-space:nowrap}.notification-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-top:9px;font-size:13px}.notification-entry small{display:block;color:var(--muted)}.notification-entry-value{text-align:right;white-space:nowrap}.notification-actions{display:flex;justify-content:flex-end;margin-top:12px}.notification-empty,.notification-error{display:grid;place-items:center;min-height:220px;text-align:center;color:var(--muted)}.notification-load-more{display:block;width:auto;margin:16px auto 0}.notification-center-loading{display:flex;align-items:center;justify-content:center;gap:10px;min-height:220px;color:var(--muted)}
   .position-panel-head{margin-bottom:8px}.position-list{display:grid;gap:12px}.position-item{padding:14px;background:#f7f9fc;border:1px solid var(--line);border-radius:9px}.position-item h3{font-size:16px;margin:0}.position-item .source{margin-top:3px}.position-values{display:grid;gap:8px;margin-top:13px}.position-value{display:flex;justify-content:space-between;gap:14px;font-size:14px}.position-value strong{white-space:nowrap}.credit-card-item{padding:14px 0;border-bottom:1px solid var(--line)}.credit-card-item:first-of-type{padding-top:4px}.credit-card-item:last-child{padding-bottom:0;border-bottom:0}.credit-card-head{display:flex;justify-content:space-between;gap:14px;align-items:start}.credit-card-head h3{font-size:16px;margin:0}.credit-limit-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin:13px 0}.credit-limit-values .small{display:block}.credit-limit-bar{height:14px;background:#eef2f8;border-radius:10px;overflow:hidden}.credit-limit-bar>span{display:block;height:100%;background:#2769d8;border-radius:10px}.credit-limit-status{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-top:7px;font-size:14px}.credit-limit-status strong{white-space:nowrap}.limit-alert{font-size:13px;color:var(--danger);margin:9px 0 0}.limit-note{font-size:13px;color:var(--muted);margin:8px 0 0}
   @media(max-width:1100px){.overview-filter-grid{grid-template-columns:1fr 1fr}.overview-filter-grid .secondary{grid-column:1/-1;justify-self:start}.overview-grid,.overview-grid.equal,.overview-grid.three{grid-template-columns:1fr}.commitment-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.cash-grid{grid-template-columns:repeat(3,1fr)}}
-  @media(max-width:700px){.overview-period{width:100%;display:grid;grid-template-columns:1fr 1fr}.overview-period input,.overview-date-control{width:100%}.overview-filter-grid{grid-template-columns:1fr}.overview-filter-grid .secondary{grid-column:auto;width:100%;text-align:center}.overview-heading{align-items:stretch;flex-direction:column}.overview-heading .button{justify-content:center}.overview-page .kpis{gap:10px}.overview-page .card,.overview-page .panel{padding:16px}.overview-page .collapsible-panel{padding:0}.overview-page .value{font-size:23px}.bar-label{font-size:13px}.commitment-cards,.cash-grid,.budget-list{grid-template-columns:1fr}.evolution-row{grid-template-columns:45px 1fr}.dashboard-detail-dialog{width:calc(100% - 16px)}.dashboard-detail-dialog .dialog-head,.dashboard-detail-body{padding:16px}.dashboard-detail-summary{display:grid}.dashboard-detail-total{text-align:left}}
+  @media(max-width:700px){.overview-period{width:100%;display:grid;grid-template-columns:1fr 1fr}.overview-period input,.overview-date-control{width:100%}.overview-header-actions{grid-column:1/-1;justify-self:end}.overview-filter-grid{grid-template-columns:1fr}.overview-filter-grid .secondary{grid-column:auto;width:100%;text-align:center}.overview-heading{align-items:stretch;flex-direction:column}.overview-heading .button{justify-content:center}.overview-page .kpis{gap:10px}.overview-page .card,.overview-page .panel{padding:16px}.overview-page .collapsible-panel{padding:0}.overview-page .value{font-size:23px}.bar-label{font-size:13px}.commitment-cards,.cash-grid,.budget-list{grid-template-columns:1fr}.evolution-row{grid-template-columns:45px 1fr}.dashboard-detail-dialog{width:calc(100% - 16px)}.dashboard-detail-dialog .dialog-head,.dashboard-detail-body{padding:16px}.dashboard-detail-summary{display:grid}.dashboard-detail-total{text-align:left}.notification-center-dialog{width:100%;border-radius:0}.notification-center-toolbar{align-items:stretch;flex-direction:column}.notification-tabs{justify-content:space-between}.notification-totals{grid-template-columns:1fr}}
 </style>
 
 <div class="overview-page">
@@ -46,9 +47,15 @@
           <input class="temporal-native" type="date" tabindex="-1" aria-hidden="true" data-dashboard-date-native>
         </span>
       </label>
-      <button type="button" class="icon-button overview-values-toggle" data-dashboard-values-toggle aria-pressed="false" aria-label="Ocultar valores" title="Ocultar valores">
-        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-      </button>
+      <div class="overview-header-actions">
+        <button type="button" class="icon-button overview-notifications-toggle" data-notifications-toggle data-notifications-url="{% url 'notificacoes_central' %}" data-mark-all-url="{% url 'notificacoes_marcar_todas_lidas' %}" aria-label="Abrir central de notificações" title="Notificações">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+          <span class="overview-notifications-badge" data-notifications-badge hidden>0</span>
+        </button>
+        <button type="button" class="icon-button overview-values-toggle" data-dashboard-values-toggle aria-pressed="false" aria-label="Ocultar valores" title="Ocultar valores">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -238,6 +245,24 @@
   <footer class="overview-footer">Resultado financeiro considera somente categorias computáveis. Fluxo de caixa considera os movimentos efetivos, inclusive pagamentos de fatura.</footer>
 </div>
 
+<dialog id="notificationCenter" class="notification-center-dialog" aria-labelledby="notificationCenterTitle">
+  <div class="notification-center-shell">
+    <div class="row notification-center-head">
+      <div><div class="eyebrow">Avisos financeiros</div><h2 id="notificationCenterTitle">Central de notificações</h2></div>
+      <button type="button" aria-label="Fechar central de notificações" data-close-notifications>&times;</button>
+    </div>
+    <div class="notification-center-toolbar">
+      <div class="notification-tabs" role="tablist" aria-label="Filtros de notificações">
+        <button class="notification-tab" type="button" role="tab" aria-selected="true" data-notification-filter="nao_lidas">Não lidas</button>
+        <button class="notification-tab" type="button" role="tab" aria-selected="false" data-notification-filter="todas">Todas</button>
+        <button class="notification-tab" type="button" role="tab" aria-selected="false" data-notification-filter="arquivadas">Arquivadas</button>
+      </div>
+      <button class="link-button notification-mark-all" type="button" data-notifications-mark-all>Marcar todas como lidas</button>
+    </div>
+    <div class="notification-center-body" data-notifications-body></div>
+  </div>
+</dialog>
+
 <dialog id="dashboardDetailDialog" class="dashboard-detail-dialog" aria-labelledby="dashboardDetailTitle">
   <div class="row dialog-head">
     <h2 id="dashboardDetailTitle">Detalhamento dos lançamentos</h2>
@@ -250,6 +275,12 @@
   (() => {
     const filterForm = document.getElementById('overviewFilters');
     const valuesToggle = document.querySelector('[data-dashboard-values-toggle]');
+    const notificationsToggle = document.querySelector('[data-notifications-toggle]');
+    const notificationsBadge = document.querySelector('[data-notifications-badge]');
+    const notificationsDialog = document.getElementById('notificationCenter');
+    const notificationsBody = notificationsDialog?.querySelector('[data-notifications-body]');
+    const notificationsMarkAll = notificationsDialog?.querySelector('[data-notifications-mark-all]');
+    const notificationTabs = [...(notificationsDialog?.querySelectorAll('[data-notification-filter]') || [])];
     const valuesStorageKey = 'my-financeiro.dashboard.values-hidden';
     const cashFlowPanel = document.querySelector('[data-cash-flow-panel]');
     const budgetOverviewPanel = document.querySelector('[data-budget-overview-panel]');
@@ -438,6 +469,263 @@
       });
     });
     const formatter = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'});
+    const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {dateStyle:'short', timeStyle:'short'});
+    const csrfToken = document.querySelector('[name="csrfmiddlewaretoken"]')?.value || '';
+    let activeNotificationFilter = 'nao_lidas';
+    let notificationPage = 1;
+    let notificationRequestSequence = 0;
+    let notificationRequestController = null;
+    let notificationTrigger = null;
+    const formatNotificationDate = (value) => {
+      const [year, month, day] = value.split('-');
+      return `${day}/${month}/${year}`;
+    };
+    const createTextElement = (tag, className, text) => {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      element.textContent = text;
+      return element;
+    };
+    const createMoney = (value, className = '') => {
+      const element = createTextElement('strong', className, formatter.format(Number(value)));
+      element.dataset.sensitiveValue = '';
+      element.dataset.originalValue = element.textContent;
+      return element;
+    };
+    const updateNotificationsBadge = (count) => {
+      if (!notificationsBadge || !notificationsToggle) return;
+      notificationsBadge.textContent = count > 99 ? '99+' : String(count);
+      notificationsBadge.hidden = count === 0;
+      notificationsToggle.setAttribute(
+        'aria-label',
+        count ? `Abrir central de notificações: ${count} não lida${count === 1 ? '' : 's'}` : 'Abrir central de notificações',
+      );
+      if (notificationsMarkAll) notificationsMarkAll.disabled = count === 0;
+    };
+    const postNotificationAction = async (url) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'},
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      updateNotificationsBadge(data.naoLidas || 0);
+      return data;
+    };
+    const renderNotification = (notification) => {
+      const item = document.createElement('details');
+      item.className = `notification-item${notification.lida ? '' : ' is-unread'}`;
+      const summary = document.createElement('summary');
+      summary.className = 'notification-summary';
+      const heading = document.createElement('div');
+      heading.append(
+        createTextElement('h3', '', notification.titulo),
+        createTextElement('span', 'small', formatNotificationDate(notification.dataReferencia)),
+      );
+      const updated = createTextElement('time', '', dateTimeFormatter.format(new Date(notification.atualizadaEm)));
+      updated.dateTime = notification.atualizadaEm;
+      summary.append(heading, updated);
+      item.append(summary);
+
+      const content = document.createElement('div');
+      content.className = 'notification-content';
+      content.append(createTextElement('p', 'notification-message', notification.mensagem));
+      const totals = document.createElement('div');
+      totals.className = 'notification-totals';
+      [
+        ['Receitas', notification.conteudo.totais.receitas, 'amount-positive'],
+        ['Despesas', notification.conteudo.totais.despesas, 'amount-negative'],
+        ['Saldo previsto', notification.conteudo.totais.saldoPrevisto, Number(notification.conteudo.totais.saldoPrevisto) >= 0 ? 'amount-positive' : 'amount-negative'],
+      ].forEach(([label, value, className]) => {
+        const total = createTextElement('div', 'notification-total', label);
+        total.append(createMoney(value, className));
+        totals.append(total);
+      });
+      content.append(totals);
+
+      notification.conteudo.contas.forEach((grupo) => {
+        const account = document.createElement('section');
+        account.className = 'notification-account';
+        const accountHead = document.createElement('div');
+        accountHead.className = 'notification-account-head';
+        accountHead.append(
+          createTextElement('strong', '', grupo.conta.nome),
+          createMoney(
+            grupo.totais.saldoPrevisto,
+            Number(grupo.totais.saldoPrevisto) >= 0 ? 'amount-positive' : 'amount-negative',
+          ),
+        );
+        account.append(accountHead);
+        grupo.itens.forEach((entry) => {
+          const row = document.createElement('div');
+          row.className = 'notification-entry';
+          const description = document.createElement('div');
+          description.append(createTextElement('span', '', entry.descricao));
+          const details = [formatNotificationDate(entry.data), entry.tipo === 'RECEITA' ? 'Receita' : 'Despesa'];
+          if (entry.categorias?.length) details.push(entry.categorias.join(', '));
+          if (entry.fatura) details.push(`${entry.fatura.cartao} · ${entry.fatura.ciclo}`);
+          description.append(createTextElement('small', '', details.join(' · ')));
+          const value = document.createElement('div');
+          value.className = 'notification-entry-value';
+          value.append(createMoney(entry.valor, entry.tipo === 'RECEITA' ? 'amount-positive' : 'amount-negative'));
+          row.append(description, value);
+          account.append(row);
+        });
+        content.append(account);
+      });
+
+      const actions = document.createElement('div');
+      actions.className = 'notification-actions';
+      const action = createTextElement(
+        'button',
+        'secondary',
+        notification.arquivada ? 'Restaurar' : 'Arquivar',
+      );
+      action.type = 'button';
+      action.addEventListener('click', async () => {
+        action.disabled = true;
+        try {
+          await postNotificationAction(notification.arquivada ? notification.urls.restaurar : notification.urls.arquivar);
+          await loadNotifications();
+        } catch (_error) {
+          action.disabled = false;
+        }
+      });
+      actions.append(action);
+      content.append(actions);
+      item.append(content);
+
+      item.addEventListener('toggle', async () => {
+        if (!item.open || notification.lida) return;
+        notification.lida = true;
+        item.classList.remove('is-unread');
+        try {
+          await postNotificationAction(notification.urls.ler);
+        } catch (_error) {
+          notification.lida = false;
+          item.classList.add('is-unread');
+        }
+      });
+      return item;
+    };
+    const showNotificationError = () => {
+      if (!notificationsBody) return;
+      notificationsBody.replaceChildren();
+      const error = document.createElement('div');
+      error.className = 'notification-error';
+      const wrapper = document.createElement('div');
+      wrapper.append(
+        createTextElement('strong', '', 'Não foi possível carregar as notificações.'),
+        createTextElement('p', '', 'Verifique sua conexão e tente novamente.'),
+      );
+      const retry = createTextElement('button', 'secondary', 'Tentar novamente');
+      retry.type = 'button';
+      retry.addEventListener('click', () => loadNotifications());
+      wrapper.append(retry);
+      error.append(wrapper);
+      notificationsBody.append(error);
+    };
+    async function loadNotifications({append = false} = {}) {
+      if (!notificationsToggle || !notificationsBody) return;
+      const requestSequence = ++notificationRequestSequence;
+      notificationRequestController?.abort();
+      notificationRequestController = new AbortController();
+      const targetPage = append ? notificationPage + 1 : 1;
+      if (!append) {
+        const loading = document.createElement('div');
+        loading.className = 'notification-center-loading';
+        loading.setAttribute('role', 'status');
+        loading.innerHTML = '<span class="loading-spinner" aria-hidden="true"></span><span>Carregando notificações...</span>';
+        notificationsBody.replaceChildren(loading);
+      }
+      try {
+        const url = new URL(notificationsToggle.dataset.notificationsUrl, window.location.origin);
+        url.searchParams.set('filtro', activeNotificationFilter);
+        url.searchParams.set('pagina', String(targetPage));
+        const response = await fetch(url, {
+          credentials: 'same-origin',
+          headers: {'X-Requested-With': 'XMLHttpRequest'},
+          signal: notificationRequestController.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (requestSequence !== notificationRequestSequence) return;
+        updateNotificationsBadge(data.naoLidas);
+        notificationPage = data.pagina;
+        let list;
+        if (append) {
+          notificationsBody.querySelector('[data-notification-load-more]')?.remove();
+          list = notificationsBody.querySelector('.notification-list');
+        } else {
+          notificationsBody.replaceChildren();
+          list = document.createElement('div');
+          list.className = 'notification-list';
+          notificationsBody.append(list);
+        }
+        data.notificacoes.forEach((notification) => list.append(renderNotification(notification)));
+        if (!list.children.length) {
+          notificationsBody.replaceChildren(
+            createTextElement('div', 'notification-empty', 'Nenhuma notificação neste filtro.'),
+          );
+        } else if (data.temMais) {
+          const loadMore = createTextElement('button', 'secondary notification-load-more', 'Carregar mais');
+          loadMore.type = 'button';
+          loadMore.dataset.notificationLoadMore = '';
+          loadMore.addEventListener('click', () => loadNotifications({append: true}));
+          notificationsBody.append(loadMore);
+        }
+        applyValuesVisibility(notificationsBody);
+      } catch (error) {
+        if (error.name === 'AbortError' || requestSequence !== notificationRequestSequence) return;
+        if (!append) showNotificationError();
+      } finally {
+        if (requestSequence === notificationRequestSequence) {
+          notificationRequestController = null;
+        }
+      }
+    }
+    const refreshNotificationsCount = async () => {
+      if (!notificationsToggle || document.hidden) return;
+      try {
+        const url = new URL(notificationsToggle.dataset.notificationsUrl, window.location.origin);
+        url.searchParams.set('filtro', 'nao_lidas');
+        url.searchParams.set('pagina', '1');
+        const response = await fetch(url, {credentials: 'same-origin'});
+        if (!response.ok) return;
+        updateNotificationsBadge((await response.json()).naoLidas);
+      } catch (_error) {
+        // O dashboard continua disponível mesmo quando a atualização do contador falha.
+      }
+    };
+    notificationsToggle?.addEventListener('click', () => {
+      if (!notificationsDialog) return;
+      notificationTrigger = notificationsToggle;
+      notificationsDialog.showModal();
+      loadNotifications();
+    });
+    notificationsDialog?.querySelector('[data-close-notifications]')?.addEventListener('click', () => notificationsDialog.close());
+    notificationsDialog?.addEventListener('close', () => notificationTrigger?.focus());
+    notificationTabs.forEach((tab) => tab.addEventListener('click', () => {
+      activeNotificationFilter = tab.dataset.notificationFilter;
+      notificationTabs.forEach((item) => item.setAttribute('aria-selected', String(item === tab)));
+      notificationsMarkAll.hidden = activeNotificationFilter === 'arquivadas';
+      loadNotifications();
+    }));
+    notificationsMarkAll?.addEventListener('click', async () => {
+      notificationsMarkAll.disabled = true;
+      try {
+        await postNotificationAction(notificationsToggle.dataset.markAllUrl);
+        await loadNotifications();
+      } catch (_error) {
+        notificationsMarkAll.disabled = false;
+      }
+    });
+    refreshNotificationsCount();
+    window.setInterval(refreshNotificationsCount, 60000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshNotificationsCount();
+    });
     if (categoryTabs) {
       const tabs = [...categoryTabs.querySelectorAll('[data-category-tab]')];
       const panels = [...categoryTabs.querySelectorAll('[data-category-panel]')];

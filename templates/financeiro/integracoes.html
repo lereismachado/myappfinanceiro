@@ -1,0 +1,85 @@
+{% extends "financeiro/base.html" %}
+{% block title %}Integrações | My App Financeiro{% endblock %}
+{% block content %}
+<header class="top">
+  <div><div class="eyebrow">Acesso externo</div><h1>Integrações</h1></div>
+</header>
+
+<div class="notice">
+  Use um token Bearer para consultar <code>POST /api/v1/previsoes/consulta/</code>. O token identifica seu usuário e deve ser guardado como credencial no n8n.
+</div>
+
+{% if token_exibido %}
+<section class="panel" aria-live="polite">
+  <h2>Copie o novo token agora</h2>
+  <p class="small">Por segurança, o segredo completo não poderá ser consultado novamente.</p>
+  <div class="field">
+    <label for="tokenGerado">Token Bearer</label>
+    <input id="tokenGerado" value="{{ token_exibido }}" readonly autocomplete="off">
+  </div>
+  <div class="actions">
+    <button class="button" type="button" id="copiarToken">Copiar token</button>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel full">
+  <h2>Gerar token</h2>
+  <form method="post" class="form">
+    {% csrf_token %}
+    <div class="field wide">
+      {{ form.nome.errors }}
+      <label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>
+      {{ form.nome }}
+      <span class="field-help">{{ form.nome.help_text }}</span>
+    </div>
+    <div class="actions wide"><button class="button" type="submit">Gerar token</button></div>
+  </form>
+</section>
+
+<section class="panel full registry-panel">
+  <h2>Tokens cadastrados</h2>
+  <table>
+    <thead><tr><th>Nome</th><th>Prefixo</th><th>Criado em</th><th>Último uso</th><th>Situação</th><th>Ação</th></tr></thead>
+    <tbody>
+      {% for token in tokens %}
+      <tr>
+        <td><strong>{{ token.nome }}</strong></td>
+        <td><code>{{ token.prefixo }}</code></td>
+        <td>{{ token.criado_em|date:"d/m/Y H:i" }}</td>
+        <td>{% if token.ultimo_uso_em %}{{ token.ultimo_uso_em|date:"d/m/Y H:i" }}{% else %}<span class="muted">Nunca utilizado</span>{% endif %}</td>
+        <td>{% if token.ativo %}<span class="pill pill-active">Ativo</span>{% else %}<span class="pill pill-inactive">Revogado</span>{% endif %}</td>
+        <td>
+          {% if token.ativo %}
+          <form method="post" action="{% url 'token_api_revogar' token.pk %}">
+            {% csrf_token %}
+            <button class="link-button danger" type="submit">Revogar</button>
+          </form>
+          {% else %}
+          <span class="muted">Sem ações</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="muted">Nenhum token cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if token_exibido %}
+<script>
+  document.getElementById('copiarToken')?.addEventListener('click', async function () {
+    const campo = document.getElementById('tokenGerado');
+    try {
+      await navigator.clipboard.writeText(campo.value);
+      this.textContent = 'Token copiado';
+    } catch (error) {
+      campo.select();
+      document.execCommand('copy');
+      this.textContent = 'Token copiado';
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}

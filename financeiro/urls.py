@@ -1,9 +1,19 @@
 from django.urls import path
 
-from . import views
+from . import api_views, views
 
 
 urlpatterns = [
+    path("api/v1/previsoes/consulta/", api_views.consultar_previsoes_view, name="api_previsoes_consulta"),
+    path("notificacoes/central/", views.notificacoes_central, name="notificacoes_central"),
+    path("notificacoes/<int:pk>/ler/", views.notificacao_marcar_lida, name="notificacao_marcar_lida"),
+    path("notificacoes/<int:pk>/arquivar/", views.notificacao_arquivar, name="notificacao_arquivar"),
+    path("notificacoes/<int:pk>/restaurar/", views.notificacao_restaurar, name="notificacao_restaurar"),
+    path(
+        "notificacoes/marcar-todas-lidas/",
+        views.notificacoes_marcar_todas_lidas,
+        name="notificacoes_marcar_todas_lidas",
+    ),
     path("", views.dashboard, name="dashboard"),
     path("dashboard/detalhamento/", views.dashboard_detalhamento, name="dashboard_detalhamento"),
     path("contas/", views.ContaListView.as_view(), name="contas"),
@@ -50,6 +60,8 @@ urlpatterns = [
     path("regras-categorizacao/<int:pk>/editar/", views.regra_categoria_editar, name="regra_categoria_editar"),
     path("regras-categorizacao/<int:pk>/duplicar/", views.regra_categoria_duplicar, name="regra_categoria_duplicar"),
     path("regras-categorizacao/<int:pk>/alternar/", views.regra_categoria_alternar, name="regra_categoria_alternar"),
+    path("integracoes/", views.integracoes, name="integracoes"),
+    path("integracoes/tokens/<int:pk>/revogar/", views.token_api_revogar, name="token_api_revogar"),
     path("lancamentos/", views.lancamentos, name="eventos"),
     path("lancamentos/novo/", views.lancamento_novo, name="evento_novo"),
     path("lancamentos/<int:pk>/clonar/", views.lancamento_clonar, name="evento_clonar"),
