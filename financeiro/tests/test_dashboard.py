@@ -725,6 +725,39 @@ class DashboardServiceTests(TestCase):
         self.assertEqual(consulta["total_gastos_por_categoria"], Decimal("1100.00"))
         self.assertEqual(consulta["simulador_economia"][0]["nome"], "AWS")
 
+    def test_ponto_atencao_controlaveis_explica_composicao_e_percentual(self):
+        estilo_vida = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Lazer",
+            essencialidade=Categoria.Essencialidade.ESTILO_VIDA,
+        )
+        essencial = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Moradia",
+            essencialidade=Categoria.Essencialidade.ESSENCIAL,
+        )
+        self.movimento("-300.00", categoria=estilo_vida)
+        self.movimento("-700.00", categoria=essencial)
+
+        consulta = consultar_dashboard(self.usuario, periodo="2026-10")
+
+        self.assertEqual(
+            consulta["pontos_atencao"],
+            [
+                {
+                    "tipo": "controlavel",
+                    "titulo": "Gastos controláveis",
+                    "mensagem": (
+                        "Soma das despesas classificadas como Estilo de vida e Supérfluo. "
+                        "Representa 30,00% das despesas do período e indica uma possibilidade "
+                        "de economia."
+                    ),
+                    "valor": Decimal("300.00"),
+                    "variacao": Decimal("0.00"),
+                }
+            ],
+        )
+
     def test_estorno_de_categoria_de_despesa_reduz_resumo_e_total_por_categoria(self):
         tarifas = Categoria.objects.create(
             usuario=self.usuario,

@@ -619,10 +619,15 @@ def _pontos_atencao(atual: dict, anterior: dict) -> list[dict]:
         ZERO,
     )
     if despesas > ZERO and controlaveis / despesas >= Decimal("0.30") and len(pontos) < 3:
+        percentual_controlaveis = f"{_percentual(max(controlaveis, ZERO), despesas):.2f}".replace(".", ",")
         pontos.append({
             "tipo": "controlavel",
             "titulo": "Gastos controláveis",
-            "mensagem": f"{_percentual(max(controlaveis, ZERO), despesas):.2f}% das despesas",
+            "mensagem": (
+                "Soma das despesas classificadas como Estilo de vida e Supérfluo. "
+                f"Representa {percentual_controlaveis}% das despesas do período e indica uma "
+                "possibilidade de economia."
+            ),
             "valor": controlaveis,
             "variacao": ZERO,
         })
