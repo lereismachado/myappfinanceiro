@@ -130,6 +130,22 @@ def _intervalo_anterior(inicio: date, fim: date) -> tuple[date, date]:
     return inicio - timedelta(days=duracao), inicio
 
 
+def _data_mes_anterior(valor: date) -> date:
+    ano = valor.year - (valor.month == 1)
+    mes = 12 if valor.month == 1 else valor.month - 1
+    return date(ano, mes, min(valor.day, monthrange(ano, mes)[1]))
+
+
+def _intervalo_comparativo_mes_anterior(inicio: date, fim: date) -> tuple[date, date]:
+    """Recua o intervalo um mês, mantendo meses completos e limites inclusivos."""
+    inicio_anterior = _data_mes_anterior(inicio)
+    fim_anterior = _data_mes_anterior(fim)
+    if inicio.day == 1 and fim == _ultimo_dia_mes(fim):
+        inicio_anterior = inicio_anterior.replace(day=1)
+        fim_anterior = _ultimo_dia_mes(fim_anterior)
+    return inicio_anterior, fim_anterior
+
+
 def _ciclo_anterior(ciclo: str) -> str:
     ano, mes = (int(parte) for parte in ciclo.split("-"))
     if mes == 1:
@@ -219,7 +235,8 @@ def _categoria_superior(categoria: Categoria | None, categorias: dict[int, Categ
     visitados = set()
     while atual.categoria_pai_id and atual.categoria_pai_id not in visitados:
         visitados.add(atual.pk)
-        atual = categorias.get(atual.categoria_pai_id, atual.categoria_pai)
+        categoria_pai = categorias.get(atual.categoria_pai_id)
+        atual = categoria_pai if categoria_pai is not None else atual.categoria_pai
     return atual
 
 
@@ -246,6 +263,7 @@ def _criar_contribuicao_analitica(
     categoria: Categoria | None,
     filtro_natureza: str,
     computacao: str = "COMPUTA",
+    incluir_receitas_nao_computaveis: bool = False,
 ) -> ContribuicaoAnalitica | None:
     if natureza_evento in {NaturezaEvento.PAGAMENTO_FATURA, NaturezaEvento.TRANSFERENCIA}:
         return None
@@ -254,12 +272,18 @@ def _criar_contribuicao_analitica(
     ):
         return None
     if computacao == "NAO_COMPUTA":
-        if (
-            natureza_evento not in {NaturezaEvento.DESPESA, NaturezaEvento.ESTORNO}
-            or not categoria
-            or categoria.computa_resultado
-            or categoria.tipo != Categoria.Tipo.DESPESA
-        ):
+        categoria_nao_computavel = bool(categoria and not categoria.computa_resultado)
+        despesa_nao_computavel = bool(
+            categoria_nao_computavel
+            and natureza_evento in {NaturezaEvento.DESPESA, NaturezaEvento.ESTORNO}
+            and categoria.tipo == Categoria.Tipo.DESPESA
+        )
+        receita_nao_computavel = bool(
+            incluir_receitas_nao_computaveis
+            and categoria_nao_computavel
+            and natureza_evento == NaturezaEvento.RECEITA
+        )
+        if not despesa_nao_computavel and not receita_nao_computavel:
             return None
     elif categoria and not categoria.computa_resultado:
         return None
@@ -323,6 +347,7 @@ def gerar_contribuicoes_analiticas(
     origem: str,
     filtro_natureza: str,
     computacao: str = "COMPUTA",
+    incluir_receitas_nao_computaveis: bool = False,
 ) -> list[ContribuicaoAnalitica]:
     computacao = computacao if computacao in COMPUTACOES_ANALITICAS else "COMPUTA"
     contribuicoes = []
@@ -343,6 +368,7 @@ def gerar_contribuicoes_analiticas(
                     categoria,
                     filtro_natureza,
                     computacao,
+                    incluir_receitas_nao_computaveis,
                 )
                 if contribuicao:
                     contribuicoes.append(contribuicao)
@@ -357,6 +383,7 @@ def gerar_contribuicoes_analiticas(
                 parcela.categoria,
                 filtro_natureza,
                 computacao,
+                incluir_receitas_nao_computaveis,
             )
             if contribuicao:
                 contribuicoes.append(contribuicao)
@@ -530,6 +557,193 @@ def _categorias_formatadas(analise: dict) -> list[dict]:
             "percentual_css": _percentual_css(percentual),
         })
     return categorias
+
+
+def _valor_comparativo(contribuicao: ContribuicaoAnalitica) -> tuple[str, Decimal] | None:
+    if contribuicao.natureza_evento == NaturezaEvento.RECEITA:
+        return "RECEITAS", abs(contribuicao.valor)
+    if contribuicao.natureza_evento == NaturezaEvento.DESPESA:
+        return "DESPESAS", abs(contribuicao.valor)
+    if (
+        contribuicao.natureza_evento == NaturezaEvento.ESTORNO
+        and contribuicao.categoria
+        and contribuicao.categoria.tipo == Categoria.Tipo.DESPESA
+    ):
+        return "DESPESAS", -abs(contribuicao.valor)
+    return None
+
+
+def _agrupar_comparativo(
+    contribuicoes: list[ContribuicaoAnalitica],
+    categorias: dict[int, Categoria],
+) -> dict[tuple[str, int | None], dict]:
+    grupos = {}
+    for contribuicao in contribuicoes:
+        valor_tipo = _valor_comparativo(contribuicao)
+        if valor_tipo is None:
+            continue
+        tipo, valor = valor_tipo
+        categoria = contribuicao.categoria
+        categoria_superior = _categoria_superior(categoria, categorias)
+        categoria_superior_id = categoria_superior.pk if categoria_superior else None
+        chave = (tipo, categoria_superior_id)
+        grupo = grupos.setdefault(
+            chave,
+            {
+                "categoria_id": categoria_superior_id,
+                "nome": categoria_superior.nome if categoria_superior else "A classificar",
+                "valor": ZERO,
+                "filhos": {},
+            },
+        )
+        grupo["valor"] += valor
+        if categoria:
+            filho = grupo["filhos"].setdefault(
+                categoria.pk,
+                {"categoria_id": categoria.pk, "nome": categoria.nome, "valor": ZERO},
+            )
+            filho["valor"] += valor
+    return grupos
+
+
+def _faixa_percentual_comparativo(percentual: Decimal) -> str:
+    if percentual <= Decimal("95.00"):
+        return "blue"
+    if percentual < Decimal("100.00"):
+        return "orange"
+    return "red"
+
+
+def _metrica_comparativo(valor_atual: Decimal, valor_anterior: Decimal) -> dict:
+    if valor_anterior > ZERO:
+        percentual = (valor_atual / valor_anterior * HUNDRED).quantize(Decimal("0.01"))
+        return {
+            "percentual": percentual,
+            "estado_percentual": "PERCENTUAL",
+            "faixa_percentual": _faixa_percentual_comparativo(percentual),
+        }
+    if valor_anterior == ZERO and valor_atual > ZERO:
+        return {"percentual": None, "estado_percentual": "NOVO", "faixa_percentual": None}
+    return {"percentual": None, "estado_percentual": "SEM_BASE", "faixa_percentual": None}
+
+
+def _ordem_comparativo(item: dict) -> tuple:
+    estado = item["estado_percentual"]
+    if estado == "NOVO":
+        faixa = 0
+        percentual = ZERO
+    elif estado == "PERCENTUAL":
+        faixa = 1
+        percentual = item["percentual"]
+    else:
+        faixa = 2
+        percentual = ZERO
+    return faixa, -percentual, -item["valor_atual"], item["nome"].casefold()
+
+
+def _formatar_item_comparativo(nome: str, valor_atual: Decimal, valor_anterior: Decimal, **extras) -> dict:
+    return {
+        **extras,
+        "nome": nome,
+        "valor_atual": valor_atual,
+        "valor_anterior": valor_anterior,
+        **_metrica_comparativo(valor_atual, valor_anterior),
+    }
+
+
+def _formatar_secao_comparativo(
+    tipo: str,
+    grupos_atuais: dict[tuple[str, int | None], dict],
+    grupos_anteriores: dict[tuple[str, int | None], dict],
+) -> dict:
+    chaves = {
+        chave
+        for chave in set(grupos_atuais) | set(grupos_anteriores)
+        if chave[0] == tipo
+    }
+    itens = []
+    for chave in chaves:
+        atual = grupos_atuais.get(chave)
+        anterior = grupos_anteriores.get(chave)
+        valor_atual = atual["valor"] if atual else ZERO
+        valor_anterior = anterior["valor"] if anterior else ZERO
+        if valor_atual == ZERO and valor_anterior == ZERO:
+            continue
+        base = atual or anterior
+        categoria_id = base["categoria_id"]
+        filhos_atuais = atual["filhos"] if atual else {}
+        filhos_anteriores = anterior["filhos"] if anterior else {}
+        filhos = []
+        for filho_id in set(filhos_atuais) | set(filhos_anteriores):
+            filho_atual = filhos_atuais.get(filho_id)
+            filho_anterior = filhos_anteriores.get(filho_id)
+            filho_valor_atual = filho_atual["valor"] if filho_atual else ZERO
+            filho_valor_anterior = filho_anterior["valor"] if filho_anterior else ZERO
+            if filho_valor_atual == ZERO and filho_valor_anterior == ZERO:
+                continue
+            filho_base = filho_atual or filho_anterior
+            nome = "Direto na categoria" if filho_id == categoria_id else filho_base["nome"]
+            filhos.append(
+                _formatar_item_comparativo(
+                    nome,
+                    filho_valor_atual,
+                    filho_valor_anterior,
+                    categoria_id=filho_id,
+                )
+            )
+        filhos.sort(key=_ordem_comparativo)
+        itens.append(
+            _formatar_item_comparativo(
+                base["nome"],
+                valor_atual,
+                valor_anterior,
+                categoria_id=categoria_id,
+                filhos=filhos,
+                expansivel=bool(filhos),
+            )
+        )
+    itens.sort(key=_ordem_comparativo)
+    return {
+        "codigo": tipo,
+        "rotulo": "Receitas" if tipo == "RECEITAS" else "Despesas",
+        "itens": itens,
+    }
+
+
+def _comparativo_categorias_formatado(
+    categorias: dict[int, Categoria],
+    contribuicoes_atuais: dict[str, list[ContribuicaoAnalitica]],
+    contribuicoes_anteriores: dict[str, list[ContribuicaoAnalitica]],
+    data_inicial: date,
+    data_final: date,
+    data_inicial_anterior: date,
+    data_final_anterior: date,
+) -> dict:
+    abas = []
+    for codigo, rotulo, slug in (
+        ("COMPUTA", "Compõe no resultado", "computa"),
+        ("NAO_COMPUTA", "Não compõe no resultado", "nao-computa"),
+    ):
+        atuais = _agrupar_comparativo(contribuicoes_atuais[codigo], categorias)
+        anteriores = _agrupar_comparativo(contribuicoes_anteriores[codigo], categorias)
+        secoes = [
+            _formatar_secao_comparativo(tipo, atuais, anteriores)
+            for tipo in ("RECEITAS", "DESPESAS")
+        ]
+        abas.append({
+            "codigo": codigo,
+            "rotulo": rotulo,
+            "slug": slug,
+            "secoes": secoes,
+            "tem_dados": any(secao["itens"] for secao in secoes),
+        })
+    return {
+        "data_inicial": data_inicial,
+        "data_final": data_final,
+        "data_inicial_anterior": data_inicial_anterior,
+        "data_final_anterior": data_final_anterior,
+        "abas": abas,
+    }
 
 
 def _composicao_formatada(analise: dict) -> list[dict]:
@@ -1109,24 +1323,81 @@ def consultar_dashboard(
     movimentos_atual = dados_analiticos["movimentos"]
     parcelas_atual = dados_analiticos["parcelas"]
     analise_atual = _analisar_contribuicoes(dados_analiticos["contribuicoes"], categorias)
+    contribuicoes_nao_computaveis = gerar_contribuicoes_analiticas(
+        movimentos_atual,
+        parcelas_atual,
+        origem,
+        natureza,
+        "NAO_COMPUTA",
+    )
     analise_nao_computavel = _analisar_contribuicoes(
-        gerar_contribuicoes_analiticas(
-            movimentos_atual,
-            parcelas_atual,
-            origem,
-            natureza,
-            "NAO_COMPUTA",
-        ),
+        contribuicoes_nao_computaveis,
         categorias,
     )
 
     inicio_anterior, fim_anterior = _intervalo_anterior(data_inicial, data_final)
-    analise_anterior = _analisar_dados(
-        _movimentos_conta(usuario, contas_filtradas, inicio_anterior, fim_anterior),
-        _parcelas_cartao(parcelas_carregadas, inicio_anterior, fim_anterior),
+    movimentos_anterior = _movimentos_conta(usuario, contas_filtradas, inicio_anterior, fim_anterior)
+    parcelas_anterior = _parcelas_cartao(parcelas_carregadas, inicio_anterior, fim_anterior)
+    contribuicoes_anterior = gerar_contribuicoes_analiticas(
+        movimentos_anterior,
+        parcelas_anterior,
         origem,
         natureza,
+    )
+    analise_anterior = _analisar_contribuicoes(contribuicoes_anterior, categorias)
+
+    inicio_comparativo, fim_comparativo = _intervalo_comparativo_mes_anterior(data_inicial, data_final)
+    fim_comparativo_exclusivo = fim_comparativo + timedelta(days=1)
+    if inicio_comparativo == inicio_anterior and fim_comparativo_exclusivo == fim_anterior:
+        movimentos_comparativo = movimentos_anterior
+        parcelas_comparativo = parcelas_anterior
+        contribuicoes_comparativo = contribuicoes_anterior
+    else:
+        movimentos_comparativo = _movimentos_conta(
+            usuario,
+            contas_filtradas,
+            inicio_comparativo,
+            fim_comparativo_exclusivo,
+        )
+        parcelas_comparativo = _parcelas_cartao(
+            parcelas_carregadas,
+            inicio_comparativo,
+            fim_comparativo_exclusivo,
+        )
+        contribuicoes_comparativo = gerar_contribuicoes_analiticas(
+            movimentos_comparativo,
+            parcelas_comparativo,
+            origem,
+            natureza,
+        )
+    comparativo_categorias = _comparativo_categorias_formatado(
         categorias,
+        {
+            "COMPUTA": dados_analiticos["contribuicoes"],
+            "NAO_COMPUTA": gerar_contribuicoes_analiticas(
+                movimentos_atual,
+                parcelas_atual,
+                origem,
+                natureza,
+                "NAO_COMPUTA",
+                incluir_receitas_nao_computaveis=True,
+            ),
+        },
+        {
+            "COMPUTA": contribuicoes_comparativo,
+            "NAO_COMPUTA": gerar_contribuicoes_analiticas(
+                movimentos_comparativo,
+                parcelas_comparativo,
+                origem,
+                natureza,
+                "NAO_COMPUTA",
+                incluir_receitas_nao_computaveis=True,
+            ),
+        },
+        data_inicial,
+        data_final,
+        inicio_comparativo,
+        fim_comparativo,
     )
 
     fluxo = _fluxo_movimentos(movimentos_atual)
@@ -1232,6 +1503,7 @@ def consultar_dashboard(
         "lancamentos_base_query": lancamentos_base_query,
         "resumo": resumo,
         "comparacoes_resumo": comparacoes_resumo,
+        "comparativo_categorias": comparativo_categorias,
         "fluxo_caixa": {
             **fluxo,
             "saldo": saldo,

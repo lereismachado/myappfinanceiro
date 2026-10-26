@@ -85,7 +85,7 @@ class MenuNavegacaoTests(TestCase):
         resposta = self.client.get(reverse("dashboard"))
         conteudo = resposta.content.decode()
 
-        self.assertContains(resposta, '<div class="app-version">v2.10.25</div>', html=False)
+        self.assertContains(resposta, '<div class="app-version">v2026.10.25</div>', html=False)
         self.assertGreater(conteudo.index('<div class="app-version">'), conteudo.index('class="nav-logout"'))
         self.assertContains(resposta, "aside p,.aside-foot,.app-version{display:none}", html=False)
 

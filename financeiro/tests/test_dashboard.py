@@ -27,7 +27,13 @@ from financeiro.models import (
     Situacao,
     Titulo,
 )
-from financeiro.services.dashboard import consultar_dashboard
+from financeiro.services.dashboard import (
+    _categoria_superior,
+    _faixa_percentual_comparativo,
+    _intervalo_comparativo_mes_anterior,
+    _mapa_categorias,
+    consultar_dashboard,
+)
 from financeiro.services.detalhamento_dashboard import (
     DetalhamentoDashboardInvalido,
     consultar_detalhamento_dashboard,
@@ -337,6 +343,195 @@ class DashboardServiceTests(TestCase):
         evolucao = {item["ciclo"]: item["despesas"] for item in consulta["evolucao"]}
         self.assertEqual(evolucao["2026-09"], Decimal("100.00"))
         self.assertEqual(evolucao["2026-10"], Decimal("150.00"))
+
+    def test_intervalo_comparativo_recua_mes_completo_parcial_e_virada_de_ano(self):
+        self.assertEqual(
+            _intervalo_comparativo_mes_anterior(date(2026, 11, 1), date(2026, 11, 30)),
+            (date(2026, 10, 1), date(2026, 10, 31)),
+        )
+        self.assertEqual(
+            _intervalo_comparativo_mes_anterior(date(2027, 3, 31), date(2027, 3, 31)),
+            (date(2027, 2, 28), date(2027, 2, 28)),
+        )
+        self.assertEqual(
+            _intervalo_comparativo_mes_anterior(date(2027, 1, 5), date(2027, 1, 20)),
+            (date(2026, 12, 5), date(2026, 12, 20)),
+        )
+
+    def test_faixa_percentual_comparativo_respeita_limites_visuais(self):
+        self.assertEqual(_faixa_percentual_comparativo(Decimal("95.00")), "blue")
+        self.assertEqual(_faixa_percentual_comparativo(Decimal("95.01")), "orange")
+        self.assertEqual(_faixa_percentual_comparativo(Decimal("99.99")), "orange")
+        self.assertEqual(_faixa_percentual_comparativo(Decimal("100.00")), "red")
+        self.assertEqual(_faixa_percentual_comparativo(Decimal("150.00")), "red")
+
+    def test_comparativo_mensal_parcial_nao_altera_comparacao_existente(self):
+        self.movimento("-200.00", date(2026, 10, 10), categoria=self.alimentacao)
+        self.movimento("-100.00", date(2026, 11, 10), categoria=self.alimentacao)
+
+        consulta = consultar_dashboard(
+            self.usuario,
+            date_from="10/11/2026",
+            date_to="20/11/2026",
+        )
+
+        comparativo = consulta["comparativo_categorias"]
+        aba = next(item for item in comparativo["abas"] if item["codigo"] == "COMPUTA")
+        despesas = next(item for item in aba["secoes"] if item["codigo"] == "DESPESAS")
+        categoria = next(item for item in despesas["itens"] if item["categoria_id"] == self.alimentacao.pk)
+        self.assertEqual(comparativo["data_inicial_anterior"], date(2026, 10, 10))
+        self.assertEqual(comparativo["data_final_anterior"], date(2026, 10, 20))
+        self.assertEqual(categoria["valor_atual"], Decimal("100.00"))
+        self.assertEqual(categoria["valor_anterior"], Decimal("200.00"))
+        self.assertEqual(categoria["percentual"], Decimal("50.00"))
+        self.assertIsNone(consulta["comparacoes_resumo"]["despesas"]["percentual"])
+
+    def test_comparativo_agrupa_hierarquia_ordena_e_inclui_duas_composicoes(self):
+        casa = Categoria.objects.create(usuario=self.usuario, nome="Casa")
+        mercado = Categoria.objects.create(usuario=self.usuario, nome="Mercado", categoria_pai=casa)
+        hortifruti = Categoria.objects.create(usuario=self.usuario, nome="Hortifruti", categoria_pai=mercado)
+        energia = Categoria.objects.create(usuario=self.usuario, nome="Energia", categoria_pai=casa)
+        antiga = Categoria.objects.create(usuario=self.usuario, nome="Despesa encerrada", categoria_pai=casa)
+        receitas = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Receitas profissionais",
+            tipo=Categoria.Tipo.RECEITA,
+        )
+        servicos = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Serviços",
+            tipo=Categoria.Tipo.RECEITA,
+            categoria_pai=receitas,
+        )
+        consultivo = Categoria.objects.create(usuario=self.usuario, nome="Movimentos consultivos")
+        investimento = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Investimento",
+            categoria_pai=consultivo,
+            computa_resultado=False,
+        )
+        aporte = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Aporte externo",
+            tipo=Categoria.Tipo.RECEITA,
+            categoria_pai=consultivo,
+            computa_resultado=False,
+        )
+
+        self.movimento("-2750.00", date(2026, 10, 5), categoria=hortifruti)
+        self.movimento("-200.00", date(2026, 10, 6), categoria=casa)
+        self.movimento("-100.00", date(2026, 10, 7), categoria=antiga)
+        self.movimento("1000.00", date(2026, 10, 8), categoria=servicos)
+        self.movimento("-100.00", date(2026, 10, 9), categoria=investimento)
+        self.movimento("500.00", date(2026, 10, 10), categoria=aporte)
+        self.movimento("-1750.00", date(2026, 11, 5), categoria=hortifruti)
+        self.movimento("-100.00", date(2026, 11, 6), categoria=casa)
+        self.movimento("-300.00", date(2026, 11, 7), categoria=energia)
+        self.movimento("1500.00", date(2026, 11, 8), categoria=servicos)
+        self.movimento("-50.00", date(2026, 11, 9), categoria=investimento)
+        self.movimento("750.00", date(2026, 11, 10), categoria=aporte)
+
+        consulta = consultar_dashboard(self.usuario, periodo="2026-11")
+        comparativo = consulta["comparativo_categorias"]
+        abas = {item["codigo"]: item for item in comparativo["abas"]}
+        secoes_computa = {item["codigo"]: item for item in abas["COMPUTA"]["secoes"]}
+        secoes_nao_computa = {item["codigo"]: item for item in abas["NAO_COMPUTA"]["secoes"]}
+
+        casa_item = next(item for item in secoes_computa["DESPESAS"]["itens"] if item["categoria_id"] == casa.pk)
+        filhos = {item["categoria_id"]: item for item in casa_item["filhos"]}
+        self.assertEqual(comparativo["data_inicial_anterior"], date(2026, 10, 1))
+        self.assertEqual(comparativo["data_final_anterior"], date(2026, 10, 31))
+        self.assertEqual(casa_item["valor_atual"], Decimal("2150.00"))
+        self.assertEqual(casa_item["valor_anterior"], Decimal("3050.00"))
+        self.assertEqual(casa_item["percentual"], Decimal("70.49"))
+        self.assertEqual(casa_item["faixa_percentual"], "blue")
+        self.assertEqual(
+            [item["categoria_id"] for item in casa_item["filhos"]],
+            [energia.pk, hortifruti.pk, casa.pk, antiga.pk],
+        )
+        self.assertEqual(filhos[energia.pk]["estado_percentual"], "NOVO")
+        self.assertIsNone(filhos[energia.pk]["faixa_percentual"])
+        self.assertEqual(filhos[hortifruti.pk]["percentual"], Decimal("63.64"))
+        self.assertEqual(filhos[casa.pk]["nome"], "Direto na categoria")
+        self.assertEqual(filhos[antiga.pk]["percentual"], Decimal("0.00"))
+
+        receita_item = secoes_computa["RECEITAS"]["itens"][0]
+        self.assertEqual(receita_item["percentual"], Decimal("150.00"))
+        self.assertEqual(receita_item["faixa_percentual"], "red")
+        self.assertEqual(secoes_nao_computa["RECEITAS"]["itens"][0]["valor_atual"], Decimal("750.00"))
+        self.assertEqual(secoes_nao_computa["DESPESAS"]["itens"][0]["valor_atual"], Decimal("50.00"))
+        self.assertEqual(consulta["resumo"]["receitas"], Decimal("1500.00"))
+        self.assertEqual(consulta["resumo"]["despesas"], Decimal("2150.00"))
+
+    def test_comparativo_aplica_estorno_e_marca_base_anterior_negativa(self):
+        reembolsada = Categoria.objects.create(usuario=self.usuario, nome="Despesa reembolsada")
+        base_negativa = Categoria.objects.create(usuario=self.usuario, nome="Base negativa")
+        self.movimento("-100.00", date(2026, 10, 5), categoria=reembolsada)
+        self.movimento("20.00", date(2026, 10, 6), natureza=NaturezaEvento.ESTORNO, categoria=base_negativa)
+        self.movimento("-100.00", date(2026, 11, 5), categoria=reembolsada)
+        self.movimento("25.00", date(2026, 11, 6), natureza=NaturezaEvento.ESTORNO, categoria=reembolsada)
+        self.movimento("-10.00", date(2026, 11, 7), categoria=base_negativa)
+
+        consulta = consultar_dashboard(self.usuario, periodo="2026-11")
+        aba = next(item for item in consulta["comparativo_categorias"]["abas"] if item["codigo"] == "COMPUTA")
+        despesas = next(item for item in aba["secoes"] if item["codigo"] == "DESPESAS")
+        itens = {item["categoria_id"]: item for item in despesas["itens"]}
+
+        self.assertEqual(itens[reembolsada.pk]["valor_atual"], Decimal("75.00"))
+        self.assertEqual(itens[reembolsada.pk]["percentual"], Decimal("75.00"))
+        self.assertEqual(itens[base_negativa.pk]["valor_anterior"], Decimal("-20.00"))
+        self.assertEqual(itens[base_negativa.pk]["estado_percentual"], "SEM_BASE")
+
+    def test_comparativo_respeita_origem_cartao_conta_e_isolamento_do_usuario(self):
+        self.movimento("-200.00", date(2026, 10, 5), categoria=self.alimentacao)
+        self.movimento("-100.00", date(2026, 11, 5), categoria=self.alimentacao)
+        self.parcela("80.00", categoria=self.alimentacao, ciclo="2026-10")
+        self.parcela("40.00", categoria=self.alimentacao, ciclo="2026-11")
+        conta_alheia = Conta.objects.create(usuario=self.outro, nome="Conta alheia")
+        categoria_alheia = Categoria.objects.create(usuario=self.outro, nome="Categoria alheia")
+        self.movimento(
+            "-999.00",
+            date(2026, 11, 5),
+            conta=conta_alheia,
+            usuario=self.outro,
+            categoria=categoria_alheia,
+        )
+
+        somente_conta = consultar_dashboard(self.usuario, periodo="2026-11", origem="account")
+        somente_cartao = consultar_dashboard(self.usuario, periodo="2026-11", origem="card")
+
+        def item_despesa(consulta):
+            aba = next(
+                item for item in consulta["comparativo_categorias"]["abas"]
+                if item["codigo"] == "COMPUTA"
+            )
+            secao = next(item for item in aba["secoes"] if item["codigo"] == "DESPESAS")
+            return next(item for item in secao["itens"] if item["categoria_id"] == self.alimentacao.pk)
+
+        conta_item = item_despesa(somente_conta)
+        cartao_item = item_despesa(somente_cartao)
+        self.assertEqual((conta_item["valor_atual"], conta_item["valor_anterior"]), (Decimal("100.00"), Decimal("200.00")))
+        self.assertEqual((cartao_item["valor_atual"], cartao_item["valor_anterior"]), (Decimal("40.00"), Decimal("80.00")))
+        self.assertNotIn("Categoria alheia", str(somente_conta["comparativo_categorias"]))
+
+    def test_categoria_superior_nao_consulta_banco_por_parcela(self):
+        superior = Categoria.objects.create(usuario=self.usuario, nome="Superior")
+        filha = Categoria.objects.create(usuario=self.usuario, nome="Filha", categoria_pai=superior)
+        for indice in range(12):
+            self.parcela(
+                "10.00",
+                categoria=filha,
+                numero=indice + 1,
+                total=12,
+            )
+        categorias = _mapa_categorias(self.usuario)
+        parcelas = list(
+            ParcelaCartao.objects.filter(compra__usuario=self.usuario).select_related("categoria")
+        )
+
+        with self.assertNumQueries(0):
+            for parcela in parcelas:
+                self.assertEqual(_categoria_superior(parcela.categoria, categorias), superior)
 
     def test_previsoes_usam_programacao_e_residual_por_vencimento(self):
         programado = Titulo.objects.create(
@@ -1709,6 +1904,45 @@ class LancamentoDashboardTests(TestCase):
         self.assertContains(resposta, ".commitment-cards,.cash-grid,.budget-list{grid-template-columns:1fr}")
         self.assertContains(formulario, 'data-lancamento-form')
         self.assertContains(formulario, 'name="origem"')
+
+    def test_dashboard_renderiza_comparativo_acima_do_simulador(self):
+        criar_lancamento(self.usuario, self.dados())
+
+        resposta = self.client.get(reverse("dashboard"), {"period": "2026-10"})
+        conteudo = resposta.content.decode()
+        inicio_comparativo = conteudo.index('id="comparisonTitle"')
+        fim_comparativo = conteudo.index('id="simulatorTitle"')
+        trecho_comparativo = conteudo[inicio_comparativo:fim_comparativo]
+
+        self.assertLess(inicio_comparativo, fim_comparativo)
+        self.assertContains(resposta, "Comparativo de receitas e despesas")
+        self.assertContains(resposta, "Atual: 01/10/2026 a 31/10/2026")
+        self.assertContains(resposta, "Anterior: 01/09/2026 a 30/09/2026")
+        self.assertContains(resposta, 'id="comparisonTab-computa"')
+        self.assertContains(resposta, 'id="comparisonPanel-nao-computa"')
+        self.assertContains(resposta, "Compõe no resultado")
+        self.assertContains(resposta, "Não compõe no resultado")
+        self.assertContains(
+            resposta,
+            '<span>Categoria superior</span><span>Anterior</span><span>Atual</span><span>% do anterior</span>',
+            html=True,
+        )
+        self.assertContains(resposta, 'aria-label="Expandir categorias de Mercado"')
+        self.assertContains(resposta, "Direto na categoria")
+        self.assertContains(resposta, '<span class="comparison-state">Novo</span>', html=True)
+        self.assertLess(trecho_comparativo.index("Receitas"), trecho_comparativo.index("Despesas"))
+        self.assertLess(
+            trecho_comparativo.index('data-label="Anterior"'),
+            trecho_comparativo.index('data-label="Atual"'),
+        )
+        self.assertIn("document.querySelectorAll('[data-category-tabs]')", conteudo)
+        self.assertIn(".comparison-columns{display:none}", conteudo)
+        self.assertIn(".comparison-category{display:flex;align-items:center;gap:8px;min-width:0;font-weight:400}", conteudo)
+        self.assertIn(".comparison-percentage{font-weight:400}", conteudo)
+        self.assertIn(".comparison-percentage.is-blue{color:var(--blue)}", conteudo)
+        self.assertIn(".comparison-percentage.is-orange{color:#d97706}", conteudo)
+        self.assertIn(".comparison-percentage.is-red{color:var(--danger)}", conteudo)
+        self.assertIn("white-space:normal;line-height:1.25", conteudo)
 
     def test_dashboard_renderiza_abas_acessiveis_de_categorias_e_escopo_nao_computavel(self):
         superior = Categoria.objects.create(usuario=self.usuario, nome="Investimentos")
