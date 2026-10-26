@@ -307,11 +307,34 @@ def dashboard_detalhamento(request):
     return render(request, "financeiro/_dashboard_detalhamento.html", contexto)
 
 
+FILTROS_RETORNO_EVENTOS = (
+    "date_from",
+    "date_to",
+    "q",
+    "origin",
+    "category",
+    "parent_category",
+    "nature",
+    "category_nature",
+    "essentiality",
+    "computes",
+    "person",
+    "status",
+    "analysis_type",
+    "analysis_value",
+    "analysis_nature",
+    "analysis_scope",
+    "group_card_invoices",
+    "dashboard_context",
+)
+
+
 def _url_retorno_lancamento(request, periodo: str, destino_padrao="eventos"):
     destino = request.GET.get("return_to", destino_padrao)
     if destino not in {"dashboard", "eventos"}:
         destino = destino_padrao
-    parametros = {"period": periodo}
+    periodo_retorno = request.GET["period"] if "period" in request.GET else periodo
+    parametros = {"period": periodo_retorno}
     for origem, nome in (("account", "account"), ("card", "card")):
         valor = request.GET.get(origem)
         if valor and valor.isdigit():
@@ -322,26 +345,7 @@ def _url_retorno_lancamento(request, periodo: str, destino_padrao="eventos"):
             if valor not in (None, ""):
                 parametros[nome] = valor
     else:
-        for nome in (
-            "date_from",
-            "date_to",
-            "q",
-            "origin",
-            "category",
-            "parent_category",
-            "nature",
-            "category_nature",
-            "essentiality",
-            "computes",
-            "person",
-            "status",
-            "analysis_type",
-            "analysis_value",
-            "analysis_nature",
-            "analysis_scope",
-            "group_card_invoices",
-            "dashboard_context",
-        ):
+        for nome in FILTROS_RETORNO_EVENTOS:
             valor = request.GET.get(nome)
             if valor not in (None, ""):
                 parametros[nome] = valor
@@ -491,8 +495,10 @@ def lancamento_clonar(request, pk):
         valor = request.GET.get(nome)
         if valor and valor.isdigit():
             parametros[nome] = valor
-    if request.GET.get("group_card_invoices") == "1":
-        parametros["group_card_invoices"] = "1"
+    for nome in FILTROS_RETORNO_EVENTOS:
+        valor = request.GET.get(nome)
+        if valor not in (None, ""):
+            parametros[nome] = valor
     return redirect(f"{reverse('evento_novo')}?{urlencode(parametros)}")
 
 

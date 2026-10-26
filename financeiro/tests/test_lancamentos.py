@@ -2,6 +2,7 @@ from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -18,6 +19,7 @@ from financeiro.models import (
     Fatura,
     MovimentoConta,
     NaturezaEvento,
+    ParcelaCartao,
     Pessoa,
     RateioCategoria,
     SerieLancamentoRecorrente,
@@ -828,6 +830,211 @@ class LancamentosViewTests(TestCase):
         }
         dados.update(alteracoes)
         return dados
+
+    def assert_redirecionamento_com_filtros(self, resposta, destino, filtros):
+        self.assertEqual(resposta.status_code, 302)
+        url = urlsplit(resposta.url)
+        self.assertEqual(url.path, reverse(destino))
+        parametros = parse_qs(url.query, keep_blank_values=True)
+        for nome, valor in filtros.items():
+            self.assertEqual(parametros.get(nome), [str(valor)], nome)
+
+    def test_novo_lancamento_preserva_periodo_e_filtros_informados(self):
+        filtros = {
+            "period": "2026-11",
+            "date_from": "01/11/2026",
+            "date_to": "30/11/2026",
+            "account": self.conta.pk,
+            "q": "mercado",
+            "origin": "CONTA",
+            "category": self.categoria.pk,
+            "nature": NaturezaEvento.DESPESA,
+            "category_nature": Categoria.Natureza.PESSOAL,
+            "essentiality": Categoria.Essencialidade.NECESSARIO_VARIAVEL,
+            "computes": "COMPUTA",
+            "person": self.pessoa.pk,
+            "status": Situacao.REALIZADO,
+            "group_card_invoices": "1",
+        }
+        url = f"{reverse('evento_novo')}?{urlencode({'return_to': 'eventos', **filtros})}"
+
+        resposta = self.client.post(url, self.dados_post(data="2026-10-05"))
+
+        self.assert_redirecionamento_com_filtros(resposta, "eventos", filtros)
+
+    def test_novo_lancamento_preserva_todos_os_ciclos_e_mantem_fallback_sem_periodo(self):
+        resposta_todos = self.client.post(
+            f"{reverse('evento_novo')}?return_to=eventos&period=",
+            self.dados_post(descricao="Todos os ciclos", data="2026-10-05"),
+        )
+        resposta_fallback = self.client.post(
+            f"{reverse('evento_novo')}?return_to=eventos",
+            self.dados_post(descricao="Fallback", data="2026-10-05"),
+        )
+
+        self.assert_redirecionamento_com_filtros(resposta_todos, "eventos", {"period": ""})
+        self.assert_redirecionamento_com_filtros(resposta_fallback, "eventos", {"period": "2026-10"})
+
+    def test_clonagem_encaminha_e_preserva_filtros_ate_o_retorno(self):
+        evento = criar_lancamento(
+            self.usuario,
+            {
+                "descricao": "Despesa original",
+                "natureza": NaturezaEvento.DESPESA,
+                "data": date(2026, 10, 5),
+                "valor": Decimal("50.00"),
+                "origem": "CONTA",
+                "conta": self.conta,
+                "cartao": None,
+                "categoria": self.categoria,
+                "pessoa": self.pessoa,
+                "pessoa_nome_livre": "",
+                "ambito": Ambito.PESSOAL,
+                "situacao": Situacao.REALIZADO,
+                "vencimento": None,
+                "ciclo": "",
+                "quantidade_parcelas": 1,
+            },
+        )
+        filtros = {
+            "period": "2026-11",
+            "date_from": "01/11/2026",
+            "date_to": "30/11/2026",
+            "q": "original",
+            "origin": "CONTA",
+            "category": self.categoria.pk,
+            "person": self.pessoa.pk,
+            "status": Situacao.REALIZADO,
+            "group_card_invoices": "1",
+        }
+        url_clonagem = (
+            f"{reverse('evento_clonar', args=[evento.pk])}"
+            f"?{urlencode({'return_to': 'eventos', **filtros})}"
+        )
+
+        redirecionamento_formulario = self.client.get(url_clonagem)
+
+        self.assertEqual(redirecionamento_formulario.status_code, 302)
+        parametros_formulario = parse_qs(
+            urlsplit(redirecionamento_formulario.url).query,
+            keep_blank_values=True,
+        )
+        for nome, valor in filtros.items():
+            self.assertEqual(parametros_formulario.get(nome), [str(valor)], nome)
+
+        resposta = self.client.post(
+            redirecionamento_formulario.url,
+            self.dados_post(descricao="Despesa clonada", data="2026-10-20"),
+        )
+
+        self.assert_redirecionamento_com_filtros(resposta, "eventos", filtros)
+
+    def test_edicao_de_conta_preserva_periodo_e_datas_filtradas(self):
+        evento = criar_lancamento(
+            self.usuario,
+            {
+                "descricao": "Despesa para editar",
+                "natureza": NaturezaEvento.DESPESA,
+                "data": date(2026, 10, 5),
+                "valor": Decimal("50.00"),
+                "origem": "CONTA",
+                "conta": self.conta,
+                "cartao": None,
+                "categoria": self.categoria,
+                "pessoa": None,
+                "pessoa_nome_livre": "",
+                "ambito": Ambito.PESSOAL,
+                "situacao": Situacao.REALIZADO,
+                "vencimento": None,
+                "ciclo": "",
+                "quantidade_parcelas": 1,
+            },
+        )
+        filtros = {
+            "period": "2026-11",
+            "date_from": "01/11/2026",
+            "date_to": "30/11/2026",
+            "origin": "CONTA",
+            "status": Situacao.REALIZADO,
+        }
+        url = (
+            f"{reverse('evento_editar', args=[evento.pk])}"
+            f"?{urlencode({'return_to': 'eventos', **filtros})}"
+        )
+
+        resposta = self.client.post(
+            url,
+            self.dados_post(
+                descricao="Despesa editada",
+                data="2026-10-20",
+                categoria=self.categoria.pk,
+            ),
+        )
+
+        self.assert_redirecionamento_com_filtros(resposta, "eventos", filtros)
+
+    def test_edicao_de_parcela_preserva_periodo_e_datas_filtradas(self):
+        cartao = Cartao.objects.create(
+            usuario=self.usuario,
+            nome="Cartão",
+            conta_pagamento_padrao=self.conta,
+            dia_vencimento=10,
+        )
+        evento = criar_lancamento(
+            self.usuario,
+            {
+                "descricao": "Compra para editar",
+                "natureza": NaturezaEvento.DESPESA,
+                "data": date(2026, 10, 5),
+                "valor": Decimal("50.00"),
+                "origem": "CARTAO",
+                "conta": None,
+                "cartao": cartao,
+                "categoria": self.categoria,
+                "pessoa": None,
+                "pessoa_nome_livre": "",
+                "ambito": Ambito.PESSOAL,
+                "situacao": Situacao.REALIZADO,
+                "vencimento": None,
+                "ciclo": "2026-10",
+                "quantidade_parcelas": 1,
+            },
+        )
+        parcela = ParcelaCartao.objects.get(compra__evento=evento)
+        filtros = {
+            "period": "2026-11",
+            "date_from": "01/11/2026",
+            "date_to": "30/11/2026",
+            "origin": "CARTAO",
+            "card": cartao.pk,
+            "status": Situacao.REALIZADO,
+        }
+        url = (
+            f"{reverse('parcela_cartao_editar', args=[parcela.pk])}"
+            f"?{urlencode({'return_to': 'eventos', **filtros})}"
+        )
+
+        resposta = self.client.post(
+            url,
+            {
+                "descricao": "Compra editada",
+                "natureza": NaturezaEvento.DESPESA,
+                "data_original": "2026-10-20",
+                "valor": "50,00",
+                "cartao": cartao.pk,
+                "categoria": self.categoria.pk,
+                "pessoa": "",
+                "pessoa_nome_livre": "",
+                "ambito": Ambito.PESSOAL,
+                "situacao": Situacao.REALIZADO,
+                "ciclo": "2026-10",
+                "numero_parcela": "1",
+                "total_parcelas": "1",
+                "observacao": "",
+            },
+        )
+
+        self.assert_redirecionamento_com_filtros(resposta, "eventos", filtros)
 
     def test_formulario_manual_de_cartao_ignora_vencimento_informado(self):
         cartao = Cartao.objects.create(
