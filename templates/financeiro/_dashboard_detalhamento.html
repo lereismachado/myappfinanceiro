@@ -1,4 +1,7 @@
 {% load financeiro_format %}
+{% if detalhamento_cobertura %}
+  {% include "financeiro/_dashboard_detalhamento_cobertura.html" %}
+{% else %}
 <section class="dashboard-detail-content" aria-label="Detalhamento de {{ titulo_detalhamento }}">
   <div class="dashboard-detail-summary">
     <div>
@@ -17,3 +20,4 @@
     <a class="button" href="{{ lancamentos_url }}">Ver em lançamentos</a>
   </div>
 </section>
+{% endif %}

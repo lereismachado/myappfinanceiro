@@ -1,0 +1,100 @@
+{% load financeiro_format %}
+<section class="dashboard-detail-content coverage-detail" aria-label="Detalhamento da cobertura dos gastos do mês">
+  <div class="dashboard-detail-summary">
+    <div>
+      <div class="eyebrow">Composição e evolução diária</div>
+      <h3>{{ titulo_detalhamento }}</h3>
+      <p class="small">Período de {{ data_inicial|date:"d/m/Y" }} a {{ data_final|date:"d/m/Y" }}</p>
+    </div>
+    <div class="dashboard-detail-total">
+      <span class="small">Cobertura com saldo inicial</span>
+      <strong class="{{ cobertura_com_saldo|classe_valor }}">{{ cobertura_com_saldo|brl_sinal }}</strong>
+      <span class="small">{{ estado_com_saldo.rotulo }}</span>
+    </div>
+  </div>
+
+  <div class="coverage-detail-totals">
+    <div><span class="small">Saldo inicial</span><strong class="{{ saldo_inicial|classe_valor }}">{{ saldo_inicial|brl_sinal }}</strong></div>
+    <div><span class="small">Receitas</span><strong class="{{ receitas.total|classe_valor }}">{{ receitas.total|brl }}</strong></div>
+    <div><span class="small">Saídas e obrigações</span><strong class="{{ saidas.total|classe_valor:'saida' }}">{{ saidas.total|brl_sinal }}</strong></div>
+    <div><span class="small">Compras no cartão</span><strong class="{{ compras_cartao.total|classe_valor:'saida' }}">{{ compras_cartao.total|brl_sinal }}</strong></div>
+  </div>
+
+  <div class="coverage-detail-results">
+    <div>
+      <span class="small">Cobertura pela renda</span>
+      <strong class="{{ cobertura_renda|classe_valor }}">{{ cobertura_renda|brl_sinal }}</strong>
+      <small>{{ estado_renda.rotulo }}{% if primeira_data_dependencia_renda %} · primeira insuficiência em {{ primeira_data_dependencia_renda|date:"d/m/Y" }}{% endif %}</small>
+    </div>
+    <div>
+      <span class="small">Cobertura com saldo inicial</span>
+      <strong class="{{ cobertura_com_saldo|classe_valor }}">{{ cobertura_com_saldo|brl_sinal }}</strong>
+      <small>{{ estado_com_saldo.rotulo }}{% if primeira_data_dependencia_com_saldo %} · primeira insuficiência em {{ primeira_data_dependencia_com_saldo|date:"d/m/Y" }}{% endif %}</small>
+    </div>
+  </div>
+
+  <section class="coverage-detail-section" aria-labelledby="coverageRevenueTitle">
+    <h4 id="coverageRevenueTitle">Receitas</h4>
+    <div class="coverage-detail-table-wrap">
+      <table class="coverage-detail-table">
+        <thead><tr><th>Data</th><th>Descrição</th><th>Origem</th><th>Situação</th><th class="money">Valor</th></tr></thead>
+        <tbody>
+          {% for item in receitas.itens %}
+            <tr><td>{{ item.data|date:"d/m/Y" }}</td><td>{{ item.descricao }}</td><td>{{ item.origem_nome }}</td><td>{{ item.situacao }}</td><td class="money {{ item.valor|classe_valor }}">{{ item.valor|brl_sinal }}</td></tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">Nenhuma receita no período.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="coverage-detail-section" aria-labelledby="coverageExpenseTitle">
+    <h4 id="coverageExpenseTitle">Saídas e obrigações da conta</h4>
+    <div class="coverage-detail-table-wrap">
+      <table class="coverage-detail-table">
+        <thead><tr><th>Data</th><th>Descrição</th><th>Origem</th><th>Situação</th><th class="money">Valor</th></tr></thead>
+        <tbody>
+          {% for item in saidas.itens %}
+            <tr><td>{{ item.data|date:"d/m/Y" }}</td><td>{{ item.descricao }}{% if item.observacao %}<small>{{ item.observacao }}</small>{% endif %}</td><td>{{ item.origem_nome }}</td><td>{{ item.situacao }}</td><td class="money {{ item.valor|classe_valor:'saida' }}">{{ item.valor|brl_sinal }}</td></tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">Nenhuma saída ou obrigação no período.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="coverage-detail-section" aria-labelledby="coverageCardTitle">
+    <h4 id="coverageCardTitle">Compras no cartão pela data da compra</h4>
+    <div class="coverage-detail-table-wrap">
+      <table class="coverage-detail-table">
+        <thead><tr><th>Data</th><th>Compra</th><th>Cartão</th><th>Situação</th><th class="money">Valor integral</th></tr></thead>
+        <tbody>
+          {% for item in compras_cartao.itens %}
+            <tr><td>{{ item.data|date:"d/m/Y" }}</td><td>{{ item.descricao }}{% if item.estimado %}<span class="coverage-estimated">Estimado</span>{% endif %}<small>{{ item.observacao }}</small></td><td>{{ item.origem_nome }}</td><td>{{ item.situacao }}</td><td class="money {{ item.valor|classe_valor:'saida' }}">{{ item.valor|brl_sinal }}</td></tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">Nenhuma compra no cartão realizada no período.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="coverage-detail-section" aria-labelledby="coverageEvolutionTitle">
+    <h4 id="coverageEvolutionTitle">Evolução diária contrafactual</h4>
+    <p class="small">As compras no cartão são tratadas como se tivessem sido pagas à vista na data da compra.</p>
+    <div class="coverage-detail-table-wrap">
+      <table class="coverage-detail-table coverage-daily-table">
+        <thead><tr><th>Data</th><th class="money">Receitas</th><th class="money">Saídas</th><th class="money">Cartão</th><th class="money">Saldo pela renda</th><th class="money">Saldo com recursos</th></tr></thead>
+        <tbody>
+          {% for linha in evolucao_diaria %}
+            <tr><td>{{ linha.data|date:"d/m/Y" }}</td><td class="money {{ linha.receitas|classe_valor }}">{{ linha.receitas|brl_sinal }}</td><td class="money {{ linha.saidas|classe_valor:'saida' }}">{{ linha.saidas|brl_sinal }}</td><td class="money {{ linha.compras|classe_valor:'saida' }}">{{ linha.compras|brl_sinal }}</td><td class="money {{ linha.saldo_renda|classe_valor }}">{{ linha.saldo_renda|brl_sinal }}</td><td class="money {{ linha.saldo_com_saldo|classe_valor }}">{{ linha.saldo_com_saldo|brl_sinal }}</td></tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">Não houve movimentos para compor a evolução diária.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>

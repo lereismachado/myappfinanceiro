@@ -1916,6 +1916,19 @@ class LancamentoDashboardTests(TestCase):
 
         self.assertLess(inicio_comparativo, fim_comparativo)
         self.assertContains(resposta, "Comparativo de receitas e despesas")
+        self.assertContains(
+            resposta,
+            '<details class="panel full overview-section collapsible-panel comparison-panel"',
+        )
+        self.assertNotContains(
+            resposta,
+            'class="panel full overview-section collapsible-panel comparison-panel" open',
+        )
+        self.assertContains(
+            resposta,
+            'title="Abrir ou fechar o comparativo de receitas e despesas"',
+        )
+        self.assertContains(resposta, 'class="collapsible-summary comparison-panel-summary"')
         self.assertContains(resposta, "Atual: 01/10/2026 a 31/10/2026")
         self.assertContains(resposta, "Anterior: 01/09/2026 a 30/09/2026")
         self.assertContains(resposta, 'id="comparisonTab-computa"')
@@ -1942,6 +1955,8 @@ class LancamentoDashboardTests(TestCase):
         self.assertIn(".comparison-percentage.is-blue{color:var(--blue)}", conteudo)
         self.assertIn(".comparison-percentage.is-orange{color:#d97706}", conteudo)
         self.assertIn(".comparison-percentage.is-red{color:var(--danger)}", conteudo)
+        self.assertIn(".overview-section.comparison-panel{margin-top:28px}", conteudo)
+        self.assertIn(".coverage-panel{margin-top:28px}", conteudo)
         self.assertIn("white-space:normal;line-height:1.25", conteudo)
 
     def test_dashboard_renderiza_abas_acessiveis_de_categorias_e_escopo_nao_computavel(self):

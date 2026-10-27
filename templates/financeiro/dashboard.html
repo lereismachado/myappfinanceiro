@@ -17,12 +17,13 @@
   .evolution-table{display:grid;gap:12px}.evolution-row{display:grid;grid-template-columns:65px 1fr;gap:12px;align-items:center}.evolution-month{font-size:13px;color:var(--muted)}.evolution-bars{display:grid;gap:4px}.evolution-bar{width:0;height:7px;border-radius:8px;min-width:2px}.evolution-bar.revenue{background:var(--green)}.evolution-bar.expense{background:var(--danger)}.evolution-bar.result{background:#d38a14}.evolution-legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-top:16px}.evolution-legend span{display:inline-flex;align-items:center;gap:5px}.legend-dot{width:9px;height:9px;border-radius:50%}.legend-dot.revenue{background:var(--green)}.legend-dot.expense{background:var(--danger)}.legend-dot.result{background:#d38a14}
   .cash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.cash-item{padding:15px;background:#f7f9fc;border-radius:8px}.cash-item .value{font-size:23px}.onboarding{margin-top:22px}.onboarding .daily-actions{display:grid;gap:16px}.daily-action{border-left:3px solid #35b99a;padding-left:14px}.daily-action h3{font-size:16px;margin:0 0 7px}.daily-action p{margin:0}.overview-footer{font-size:14px;color:var(--muted);margin-top:28px}
   .cash-budget-grid{align-items:start}.budget-panel{display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden;min-height:0}.budget-panel h2,.budget-panel h2 *,.budget-item,.budget-item *{font-weight:400}.budget-content{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0}.budget-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:11px 20px;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding-right:5px}.budget-item{padding:7px;margin:0;min-width:0}.budget-item-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;margin-bottom:4px;font-size:14px}.budget-item-budget{color:var(--muted);font-size:12px;white-space:nowrap;text-align:right}.budget-expense-row{display:grid;grid-template-columns:auto minmax(40px,1fr) auto;gap:9px;align-items:center;font-size:12px}.budget-expense-row>span:first-child{color:var(--muted)}.budget-expense-values{color:var(--muted);white-space:nowrap;text-align:right}.budget-bar-track{height:7px;background:#eef2f8;border-radius:8px;overflow:hidden}.budget-bar-fill{display:block;width:0;height:100%;border-radius:8px}.budget-bar-fill.blue{background:var(--blue)}.budget-bar-fill.orange{background:#d97706}.budget-bar-fill.red{background:var(--danger)}.budget-bar-fill.neutral{background:var(--line)}.overview-section.simulator-panel{margin-top:22px}
-  .comparison-heading{align-items:flex-start}.comparison-heading p{margin:5px 0 0}.comparison-section+.comparison-section{margin-top:24px}.comparison-section h3{font-size:16px;margin:0 0 10px}.comparison-columns,.comparison-row{display:grid;grid-template-columns:minmax(180px,1fr) repeat(2,minmax(120px,.32fr)) minmax(105px,.25fr);gap:14px;align-items:center}.comparison-columns{padding:0 14px 7px;color:var(--muted);font-size:12px;font-weight:700}.comparison-columns span:not(:first-child),.comparison-value{text-align:right}.comparison-list{display:grid;gap:8px}.comparison-group{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}.comparison-summary{cursor:pointer;list-style:none;padding:13px 14px}.comparison-summary::-webkit-details-marker{display:none}.comparison-category{display:flex;align-items:center;gap:8px;min-width:0;font-weight:400}.comparison-category svg{width:16px;height:16px;fill:none;stroke:var(--blue);stroke-width:2;transition:transform .18s ease;flex:none}.comparison-group[open]>.comparison-summary .comparison-category svg{transform:rotate(90deg)}.comparison-value{white-space:nowrap}.comparison-percentage{font-weight:400}.comparison-percentage.is-blue{color:var(--blue)}.comparison-percentage.is-orange{color:#d97706}.comparison-percentage.is-red{color:var(--danger)}.comparison-state{display:inline-flex;justify-content:center;min-width:72px;border-radius:999px;padding:3px 8px;background:#edf2fa;color:var(--blue);font-size:12px}.comparison-state.is-unavailable{background:#f1f3f6;color:var(--muted)}.comparison-children{border-top:1px solid var(--line);background:#f8fafc;padding:3px 14px}.comparison-child{padding:10px 0;border-bottom:1px solid #e8edf4;font-size:14px}.comparison-child:last-child{border-bottom:0}.comparison-child .comparison-category{padding-left:24px;font-weight:400}.comparison-static{padding:13px 14px}.comparison-empty{padding:14px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:14px}
+  .overview-section.comparison-panel{margin-top:28px}.comparison-panel-summary .comparison-heading{flex:1;margin:0}.comparison-heading{align-items:flex-start}.comparison-heading p{margin:5px 0 0}.comparison-section+.comparison-section{margin-top:24px}.comparison-section h3{font-size:16px;margin:0 0 10px}.comparison-columns,.comparison-row{display:grid;grid-template-columns:minmax(180px,1fr) repeat(2,minmax(120px,.32fr)) minmax(105px,.25fr);gap:14px;align-items:center}.comparison-columns{padding:0 14px 7px;color:var(--muted);font-size:12px;font-weight:700}.comparison-columns span:not(:first-child),.comparison-value{text-align:right}.comparison-list{display:grid;gap:8px}.comparison-group{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}.comparison-summary{cursor:pointer;list-style:none;padding:13px 14px}.comparison-summary::-webkit-details-marker{display:none}.comparison-category{display:flex;align-items:center;gap:8px;min-width:0;font-weight:400}.comparison-category svg{width:16px;height:16px;fill:none;stroke:var(--blue);stroke-width:2;transition:transform .18s ease;flex:none}.comparison-group[open]>.comparison-summary .comparison-category svg{transform:rotate(90deg)}.comparison-value{white-space:nowrap}.comparison-percentage{font-weight:400}.comparison-percentage.is-blue{color:var(--blue)}.comparison-percentage.is-orange{color:#d97706}.comparison-percentage.is-red{color:var(--danger)}.comparison-state{display:inline-flex;justify-content:center;min-width:72px;border-radius:999px;padding:3px 8px;background:#edf2fa;color:var(--blue);font-size:12px}.comparison-state.is-unavailable{background:#f1f3f6;color:var(--muted)}.comparison-children{border-top:1px solid var(--line);background:#f8fafc;padding:3px 14px}.comparison-child{padding:10px 0;border-bottom:1px solid #e8edf4;font-size:14px}.comparison-child:last-child{border-bottom:0}.comparison-child .comparison-category{padding-left:24px;font-weight:400}.comparison-static{padding:13px 14px}.comparison-empty{padding:14px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:14px}
+  .coverage-panel{margin-top:28px}.coverage-panel .collapsible-summary{position:relative}.coverage-summary-title{display:flex;align-items:center;gap:8px;min-width:0}.coverage-summary-title h2{min-width:0}.coverage-summary-meta{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px;font-weight:600}.coverage-help{display:inline-flex;flex:0 0 auto}.coverage-help-button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid #b7c7dc;border-radius:50%;background:#fff;color:var(--blue);font-size:13px;font-weight:800;line-height:1;cursor:help}.coverage-help-button:hover,.coverage-help-button:focus-visible{background:#edf2fa;border-color:var(--blue);outline:2px solid #2769d833;outline-offset:2px}.coverage-tooltip{position:fixed;z-index:80;width:min(360px,calc(100vw - 32px));max-height:min(320px,calc(100vh - 32px));overflow:auto;padding:12px 14px;border:1px solid #b7c7dc;border-radius:9px;background:#17233b;color:#fff;box-shadow:0 12px 30px #17233b40;font-size:13px;font-weight:500;line-height:1.45;cursor:default}.coverage-tooltip[hidden]{display:none}.coverage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.coverage-metric{padding:14px;border:1px solid var(--line);border-radius:9px;background:#f7f9fc;min-width:0}.coverage-metric .small{display:block}.coverage-metric .value{font-size:22px;margin:5px 0}.coverage-status{display:inline-flex;margin-top:5px;border-radius:999px;padding:3px 8px;background:#edf2fa;color:var(--blue);font-size:12px;font-weight:700}.coverage-status.is-warning{background:#fff1d6;color:#8a5a00}.coverage-status.is-danger{background:#ffe7e7;color:var(--danger)}.coverage-dependency{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.coverage-dependency>div{padding:12px 14px;border-left:3px solid #d38a14;background:#fff8ea;border-radius:4px}.coverage-dependency strong{display:block;margin-top:4px}.coverage-actions{display:flex;justify-content:flex-end;margin-top:16px}.coverage-detail-totals,.coverage-detail-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}.coverage-detail-totals>div,.coverage-detail-results>div{display:grid;gap:4px;padding:12px;border:1px solid var(--line);border-radius:8px;background:#f7f9fc}.coverage-detail-results{grid-template-columns:repeat(2,minmax(0,1fr))}.coverage-detail-results strong,.coverage-detail-totals strong{font-size:18px}.coverage-detail-results small{color:var(--muted)}.coverage-detail-section{margin-top:24px}.coverage-detail-section h4{font-size:17px;margin:0 0 9px}.coverage-detail-section>p{margin:-3px 0 10px}.coverage-detail-table-wrap{overflow-x:auto}.coverage-detail-table{width:100%;min-width:760px;border-collapse:collapse}.coverage-detail-table th,.coverage-detail-table td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.coverage-detail-table th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.02em}.coverage-detail-table .money{text-align:right;white-space:nowrap}.coverage-detail-table td small{display:block;margin-top:3px;color:var(--muted)}.coverage-detail-table .empty{padding:22px;text-align:center;color:var(--muted)}.coverage-estimated{display:inline-flex;margin-left:7px;border-radius:999px;padding:2px 7px;background:#fff1d6;color:#8a5a00;font-size:11px;font-weight:700}.coverage-daily-table{min-width:900px}
   .dashboard-detail-dialog{max-width:1240px;width:calc(100% - 32px);padding:0;overflow:hidden}.dashboard-detail-dialog .dialog-head{padding:20px 24px;margin:0;border-bottom:1px solid var(--line)}.dashboard-detail-body{padding:22px 24px;max-height:calc(90vh - 78px);overflow:auto}.dashboard-detail-loading{display:flex;align-items:center;justify-content:center;gap:12px;min-height:180px;color:var(--muted)}.dashboard-detail-summary{display:flex;justify-content:space-between;align-items:start;gap:20px;margin-bottom:18px}.dashboard-detail-summary h3{font-size:22px;margin:4px 0}.dashboard-detail-summary p{margin:0}.dashboard-detail-total{text-align:right;display:grid;gap:4px}.dashboard-detail-total strong{font-size:22px;white-space:nowrap}.dashboard-detail-actions{display:flex;justify-content:flex-end;margin-top:20px}.dashboard-detail-dialog .transactions-count{margin:0 0 10px}.dashboard-detail-dialog .transactions-table-wrap{overflow-x:auto}.dashboard-detail-dialog .transactions-table{min-width:850px}.dashboard-detail-dialog .transactions-table td:first-child,.dashboard-detail-dialog .transactions-table .money{white-space:nowrap}.dashboard-detail-dialog .transactions-table .description{min-width:250px;max-width:430px;overflow-wrap:anywhere}.dashboard-detail-dialog .transactions-table .source-name,.dashboard-detail-dialog .transactions-table .category-cell{min-width:170px}.dashboard-detail-dialog .transactions-table .pill{display:inline-block;margin-top:5px;background:#edf2fa;color:var(--blue)}.dashboard-detail-dialog .transactions-table .transaction-main-row.has-observation td{border-bottom:0;padding-bottom:5px}.dashboard-detail-dialog .transactions-table .transaction-observation-row td{padding-top:0}.dashboard-detail-dialog .transactions-table .transaction-observation{color:var(--muted);font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.dashboard-detail-dialog .transactions-table .transaction-observation strong{color:var(--ink)}.dashboard-detail-dialog .transactions-table .empty{padding:28px;text-align:center;color:var(--muted)}.dashboard-detail-error{min-height:180px;display:grid;place-items:center;text-align:center}.dashboard-detail-error p{color:var(--muted)}
   .notification-center-dialog{inset:0 0 0 auto;margin:0 0 0 auto;width:min(540px,100%);height:100dvh;max-height:none;padding:0;border-radius:14px 0 0 14px;overflow:hidden}.notification-center-shell{display:grid;grid-template-rows:auto auto minmax(0,1fr);height:100%}.notification-center-head{padding:20px 22px;margin:0;border-bottom:1px solid var(--line)}.notification-center-head h2{margin:0}.notification-center-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line)}.notification-tabs{display:flex;gap:4px}.notification-tab{width:auto;border:0;border-radius:7px;background:transparent;color:var(--muted);padding:7px 9px;font-size:13px;font-weight:700}.notification-tab[aria-selected="true"]{background:#edf2fa;color:var(--blue)}.notification-mark-all{width:auto}.notification-center-body{overflow-y:auto;padding:16px 18px 24px}.notification-list{display:grid;gap:12px}.notification-item{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}.notification-item.is-unread{border-left:4px solid var(--blue)}.notification-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:15px;cursor:pointer;list-style:none}.notification-summary::-webkit-details-marker{display:none}.notification-summary h3{font-size:16px;margin:0 0 4px}.notification-summary time{font-size:12px;color:var(--muted);white-space:nowrap}.notification-content{padding:0 15px 15px;border-top:1px solid #edf1f6}.notification-message{margin:13px 0;color:var(--muted);font-size:14px}.notification-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}.notification-total{padding:9px;background:#f7f9fc;border-radius:7px;font-size:12px}.notification-total strong{display:block;margin-top:3px;font-size:14px}.notification-account{padding:11px 0;border-top:1px solid var(--line)}.notification-account-head{display:flex;justify-content:space-between;gap:12px}.notification-account-head strong:last-child{white-space:nowrap}.notification-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-top:9px;font-size:13px}.notification-entry small{display:block;color:var(--muted)}.notification-entry-value{text-align:right;white-space:nowrap}.notification-actions{display:flex;justify-content:flex-end;margin-top:12px}.notification-empty,.notification-error{display:grid;place-items:center;min-height:220px;text-align:center;color:var(--muted)}.notification-load-more{display:block;width:auto;margin:16px auto 0}.notification-center-loading{display:flex;align-items:center;justify-content:center;gap:10px;min-height:220px;color:var(--muted)}
   .position-panel-head{margin-bottom:8px}.position-list{display:grid;gap:12px}.position-item{padding:14px;background:#f7f9fc;border:1px solid var(--line);border-radius:9px}.position-item h3{font-size:16px;margin:0}.position-item .source{margin-top:3px}.position-values{display:grid;gap:8px;margin-top:13px}.position-value{display:flex;justify-content:space-between;gap:14px;font-size:14px}.position-value strong{white-space:nowrap}.credit-card-item{padding:14px 0;border-bottom:1px solid var(--line)}.credit-card-item:first-of-type{padding-top:4px}.credit-card-item:last-child{padding-bottom:0;border-bottom:0}.credit-card-head{display:flex;justify-content:space-between;gap:14px;align-items:start}.credit-card-head h3{font-size:16px;margin:0}.credit-limit-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin:13px 0}.credit-limit-values .small{display:block}.credit-limit-bar{height:14px;background:#eef2f8;border-radius:10px;overflow:hidden}.credit-limit-bar>span{display:block;height:100%;background:#2769d8;border-radius:10px}.credit-limit-status{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-top:7px;font-size:14px}.credit-limit-status strong{white-space:nowrap}.limit-alert{font-size:13px;color:var(--danger);margin:9px 0 0}.limit-note{font-size:13px;color:var(--muted);margin:8px 0 0}
-  @media(max-width:1100px){.overview-filter-grid{grid-template-columns:1fr 1fr}.overview-filter-grid .secondary{grid-column:1/-1;justify-self:start}.overview-grid,.overview-grid.equal,.overview-grid.three{grid-template-columns:1fr}.commitment-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.cash-grid{grid-template-columns:repeat(3,1fr)}}
-  @media(max-width:700px){.overview-period{width:100%;display:grid;grid-template-columns:1fr 1fr}.overview-period input,.overview-date-control{width:100%}.overview-header-actions{grid-column:1/-1;justify-self:end}.overview-filter-grid{grid-template-columns:1fr}.overview-filter-grid .secondary{grid-column:auto;width:100%;text-align:center}.overview-heading{align-items:stretch;flex-direction:column}.overview-heading .button{justify-content:center}.overview-page .kpis{gap:10px}.overview-page .card,.overview-page .panel{padding:16px}.overview-page .collapsible-panel{padding:0}.overview-page .value{font-size:23px}.bar-label{font-size:13px}.commitment-cards,.cash-grid,.budget-list{grid-template-columns:1fr}.evolution-row{grid-template-columns:45px 1fr}.comparison-columns{display:none}.comparison-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px}.comparison-category{grid-column:1/-1}.comparison-value{font-size:13px}.comparison-value::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--muted);font-size:10px;font-weight:600}.comparison-child .comparison-category{padding-left:14px}.comparison-tabs{display:flex;width:100%}.comparison-tabs .category-tab{flex:1;white-space:normal;line-height:1.25}.dashboard-detail-dialog{width:calc(100% - 16px)}.dashboard-detail-dialog .dialog-head,.dashboard-detail-body{padding:16px}.dashboard-detail-summary{display:grid}.dashboard-detail-total{text-align:left}.notification-center-dialog{width:100%;border-radius:0}.notification-center-toolbar{align-items:stretch;flex-direction:column}.notification-tabs{justify-content:space-between}.notification-totals{grid-template-columns:1fr}}
+  @media(max-width:1100px){.overview-filter-grid{grid-template-columns:1fr 1fr}.overview-filter-grid .secondary{grid-column:1/-1;justify-self:start}.overview-grid,.overview-grid.equal,.overview-grid.three{grid-template-columns:1fr}.commitment-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.cash-grid{grid-template-columns:repeat(3,1fr)}.coverage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.coverage-detail-totals{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:700px){.overview-period{width:100%;display:grid;grid-template-columns:1fr 1fr}.overview-period input,.overview-date-control{width:100%}.overview-header-actions{grid-column:1/-1;justify-self:end}.overview-filter-grid{grid-template-columns:1fr}.overview-filter-grid .secondary{grid-column:auto;width:100%;text-align:center}.overview-heading{align-items:stretch;flex-direction:column}.overview-heading .button{justify-content:center}.overview-page .kpis{gap:10px}.overview-page .card,.overview-page .panel{padding:16px}.overview-page .collapsible-panel{padding:0}.overview-page .value{font-size:23px}.bar-label{font-size:13px}.commitment-cards,.cash-grid,.budget-list{grid-template-columns:1fr}.coverage-grid,.coverage-detail-totals,.coverage-detail-results,.coverage-dependency{grid-template-columns:1fr}.evolution-row{grid-template-columns:45px 1fr}.comparison-columns{display:none}.comparison-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px}.comparison-category{grid-column:1/-1}.comparison-value{font-size:13px}.comparison-value::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--muted);font-size:10px;font-weight:600}.comparison-child .comparison-category{padding-left:14px}.comparison-tabs{display:flex;width:100%}.comparison-tabs .category-tab{flex:1;white-space:normal;line-height:1.25}.coverage-panel .collapsible-summary{align-items:flex-start;flex-wrap:wrap}.coverage-summary-title{flex:1 1 calc(100% - 42px)}.coverage-summary-meta{order:3;flex:1 0 100%;padding-left:0}.coverage-panel .collapsible-toggle{order:2}.dashboard-detail-dialog{width:calc(100% - 16px)}.dashboard-detail-dialog .dialog-head,.dashboard-detail-body{padding:16px}.dashboard-detail-summary{display:grid}.dashboard-detail-total{text-align:left}.notification-center-dialog{width:100%;border-radius:0}.notification-center-toolbar{align-items:stretch;flex-direction:column}.notification-tabs{justify-content:space-between}.notification-totals{grid-template-columns:1fr}}
 </style>
 
 <div class="overview-page">
@@ -216,15 +217,21 @@
     </article>
   </section>
 
-  <section class="panel full overview-section comparison-panel" aria-labelledby="comparisonTitle" data-category-tabs>
-    <div class="overview-heading comparison-heading">
-      <div>
-        <h2 id="comparisonTitle">Comparativo de receitas e despesas</h2>
-        <p class="small">Atual: {{ comparativo_categorias.data_inicial|date:"d/m/Y" }} a {{ comparativo_categorias.data_final|date:"d/m/Y" }} · Anterior: {{ comparativo_categorias.data_inicial_anterior|date:"d/m/Y" }} a {{ comparativo_categorias.data_final_anterior|date:"d/m/Y" }}</p>
+  <details class="panel full overview-section collapsible-panel comparison-panel" aria-labelledby="comparisonTitle" data-category-tabs>
+    <summary class="collapsible-summary comparison-panel-summary" title="Abrir ou fechar o comparativo de receitas e despesas">
+      <div class="overview-heading comparison-heading">
+        <div>
+          <h2 id="comparisonTitle">Comparativo de receitas e despesas</h2>
+          <p class="small">Atual: {{ comparativo_categorias.data_inicial|date:"d/m/Y" }} a {{ comparativo_categorias.data_final|date:"d/m/Y" }} · Anterior: {{ comparativo_categorias.data_inicial_anterior|date:"d/m/Y" }} a {{ comparativo_categorias.data_final_anterior|date:"d/m/Y" }}</p>
+        </div>
+        <span class="small">Percentual do valor atual em relação ao anterior</span>
       </div>
-      <span class="small">Percentual do valor atual em relação ao anterior</span>
-    </div>
-    <div class="category-tabs comparison-tabs" role="tablist" aria-label="Composição do comparativo">
+      <span class="collapsible-toggle" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+    </summary>
+    <div class="collapsible-content">
+      <div class="category-tabs comparison-tabs" role="tablist" aria-label="Composição do comparativo">
       {% for aba in comparativo_categorias.abas %}
         <button class="category-tab" id="comparisonTab-{{ aba.slug }}" type="button" role="tab" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="comparisonPanel-{{ aba.slug }}" tabindex="{% if forloop.first %}0{% else %}-1{% endif %}" data-category-tab="{{ aba.codigo }}">{{ aba.rotulo }}</button>
       {% endfor %}
@@ -278,8 +285,46 @@
         {% endif %}
       </div>
     {% endfor %}
-    <p class="overview-helper">Clique em uma categoria superior para ver as categorias menores. Categorias novas aparecem antes das comparações percentuais.</p>
-  </section>
+      <p class="overview-helper">Clique em uma categoria superior para ver as categorias menores. Categorias novas aparecem antes das comparações percentuais.</p>
+    </div>
+  </details>
+
+  <details class="panel full overview-section collapsible-panel coverage-panel" aria-labelledby="coverageTitle" data-coverage-panel>
+    <summary class="collapsible-summary" title="Abrir ou fechar a cobertura dos gastos do mês">
+      <span class="coverage-summary-title">
+        <h2 id="coverageTitle">Cobertura dos gastos do mês</h2>
+        <span class="coverage-help" data-coverage-help>
+          <button class="coverage-help-button" type="button" aria-label="Ver regras financeiras do indicador" aria-controls="coverageRulesTooltip" aria-expanded="false" data-coverage-help-button>?</button>
+          <span class="coverage-tooltip" id="coverageRulesTooltip" role="tooltip" data-coverage-tooltip hidden>Este indicador compara as receitas do período com as saídas e obrigações da conta e com o valor integral das compras realizadas no cartão, mesmo quando parceladas ou cobradas em ciclos futuros. Pagamentos de faturas representam compromissos anteriores; transferências próprias são desconsideradas, estornos reduzem os gastos e valores previstos são separados dos realizados. A cobertura com saldo inicial também considera os recursos disponíveis antes do início do período.</span>
+        </span>
+      </span>
+      <span class="coverage-summary-meta">
+        {{ cobertura_credito.estado_com_saldo.rotulo }} ·
+        <strong class="{{ cobertura_credito.cobertura_com_saldo|classe_valor }}">{{ cobertura_credito.cobertura_com_saldo|brl_sinal }}</strong>
+      </span>
+      <span class="collapsible-toggle" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+    </summary>
+    <div class="collapsible-content">
+      <div class="coverage-grid">
+        <div class="coverage-metric"><span class="small">Receitas do período</span><div class="value {{ cobertura_credito.receitas.total|classe_valor }}">{{ cobertura_credito.receitas.total|brl }}</div><span class="small">Realizadas: {{ cobertura_credito.receitas.realizados|brl }} · previstas: {{ cobertura_credito.receitas.previstos|brl }}</span></div>
+        <div class="coverage-metric"><span class="small">Saídas e obrigações</span><div class="value {{ cobertura_credito.saidas.total|classe_valor:'saida' }}">{{ cobertura_credito.saidas.total|brl_sinal }}</div><span class="small">Realizadas: {{ cobertura_credito.saidas.realizados|brl }} · previstas: {{ cobertura_credito.saidas.previstos|brl }}</span></div>
+        <div class="coverage-metric"><span class="small">Compras feitas no cartão</span><div class="value {{ cobertura_credito.compras_cartao.total|classe_valor:'saida' }}">{{ cobertura_credito.compras_cartao.total|brl_sinal }}</div><span class="small">Valor integral pela data da compra{% if cobertura_credito.tem_estimativas %} · contém estimativa{% endif %}</span></div>
+        <div class="coverage-metric"><span class="small">Saldo inicial</span><div class="value {{ cobertura_credito.saldo_inicial|classe_valor }}">{{ cobertura_credito.saldo_inicial|brl_sinal }}</div><span class="small">Recursos disponíveis antes do período</span></div>
+        <div class="coverage-metric"><span class="small">Cobertura pela renda</span><div class="value {{ cobertura_credito.cobertura_renda|classe_valor }}">{{ cobertura_credito.cobertura_renda|brl_sinal }}</div><span class="coverage-status{% if cobertura_credito.estado_renda.codigo == 'DEPENDENCIA_TEMPORARIA' %} is-warning{% elif cobertura_credito.estado_renda.codigo == 'DEPENDENCIA_FECHAMENTO' %} is-danger{% endif %}">{{ cobertura_credito.estado_renda.rotulo }}</span></div>
+        <div class="coverage-metric"><span class="small">Cobertura com saldo inicial</span><div class="value {{ cobertura_credito.cobertura_com_saldo|classe_valor }}">{{ cobertura_credito.cobertura_com_saldo|brl_sinal }}</div><span class="coverage-status{% if cobertura_credito.estado_com_saldo.codigo == 'DEPENDENCIA_TEMPORARIA' %} is-warning{% elif cobertura_credito.estado_com_saldo.codigo == 'DEPENDENCIA_FECHAMENTO' %} is-danger{% endif %}">{{ cobertura_credito.estado_com_saldo.rotulo }}</span></div>
+      </div>
+      <div class="coverage-dependency">
+        <div><span class="small">Primeira dependência pela renda</span><strong>{% if cobertura_credito.primeira_data_dependencia_renda %}{{ cobertura_credito.primeira_data_dependencia_renda|date:"d/m/Y" }} · déficit máximo {{ cobertura_credito.maior_deficit_renda|brl }}{% else %}Não ocorreu no período{% endif %}</strong></div>
+        <div><span class="small">Primeira dependência usando o saldo inicial</span><strong>{% if cobertura_credito.primeira_data_dependencia_com_saldo %}{{ cobertura_credito.primeira_data_dependencia_com_saldo|date:"d/m/Y" }} · déficit máximo {{ cobertura_credito.maior_deficit_com_saldo|brl }}{% else %}Não ocorreu no período{% endif %}</strong></div>
+      </div>
+      <p class="overview-helper">Simulação de liquidez: compras no cartão são tratadas como pagamento à vista na data da compra; pagamentos de faturas representam compromissos de meses anteriores.</p>
+      <div class="coverage-actions">
+        <a class="button secondary" href="{% url 'dashboard_detalhamento' %}?{{ detalhe_base_query }}&amp;type=credit_coverage" data-dashboard-detail-url="{% url 'dashboard_detalhamento' %}?{{ detalhe_base_query }}&amp;type=credit_coverage">Ver composição e evolução</a>
+      </div>
+    </div>
+  </details>
 
   <details class="panel full overview-section collapsible-panel simulator-panel" aria-labelledby="simulatorTitle">
     <summary class="collapsible-summary" title="Abrir ou fechar o simulador de economia">
@@ -351,6 +396,9 @@
     const cashFlowPanel = document.querySelector('[data-cash-flow-panel]');
     const budgetOverviewPanel = document.querySelector('[data-budget-overview-panel]');
     const categoryTabGroups = [...document.querySelectorAll('[data-category-tabs]')];
+    const coverageHelp = document.querySelector('[data-coverage-help]');
+    const coverageHelpButton = coverageHelp?.querySelector('[data-coverage-help-button]');
+    const coverageTooltip = coverageHelp?.querySelector('[data-coverage-tooltip]');
     const sensitiveValuePattern = /R\$\s*(?:[-−]?\s*)?[\d.]+,\d{2}|[-−]?\d+(?:,\d+)?%/g;
     let valuesHidden = false;
     try {
@@ -821,6 +869,60 @@
         });
       });
     });
+    let coverageHelpPinned = false;
+    const positionCoverageTooltip = () => {
+      if (!coverageHelpButton || !coverageTooltip || coverageTooltip.hidden) return;
+      const trigger = coverageHelpButton.getBoundingClientRect();
+      const margin = 16;
+      const width = Math.min(360, window.innerWidth - margin * 2);
+      const left = Math.min(
+        Math.max(margin, trigger.left + trigger.width / 2 - width / 2),
+        window.innerWidth - width - margin,
+      );
+      const preferredTop = trigger.bottom + 9;
+      coverageTooltip.style.width = `${width}px`;
+      coverageTooltip.style.left = `${left}px`;
+      coverageTooltip.style.top = `${Math.min(preferredTop, window.innerHeight - coverageTooltip.offsetHeight - margin)}px`;
+    };
+    const showCoverageTooltip = () => {
+      if (!coverageHelpButton || !coverageTooltip) return;
+      coverageTooltip.hidden = false;
+      coverageHelpButton.setAttribute('aria-expanded', 'true');
+      window.requestAnimationFrame(positionCoverageTooltip);
+    };
+    const hideCoverageTooltip = () => {
+      if (!coverageHelpButton || !coverageTooltip) return;
+      coverageTooltip.hidden = true;
+      coverageHelpButton.setAttribute('aria-expanded', 'false');
+    };
+    coverageHelpButton?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      coverageHelpPinned = coverageTooltip?.hidden ?? false;
+      if (coverageHelpPinned) showCoverageTooltip();
+      else hideCoverageTooltip();
+    });
+    coverageHelp?.addEventListener('mouseenter', showCoverageTooltip);
+    coverageHelp?.addEventListener('mouseleave', () => {
+      if (!coverageHelpPinned && document.activeElement !== coverageHelpButton) hideCoverageTooltip();
+    });
+    coverageHelpButton?.addEventListener('focus', showCoverageTooltip);
+    coverageHelpButton?.addEventListener('blur', () => {
+      if (!coverageHelpPinned) hideCoverageTooltip();
+    });
+    document.addEventListener('click', (event) => {
+      if (!coverageHelp?.contains(event.target)) {
+        coverageHelpPinned = false;
+        hideCoverageTooltip();
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || coverageTooltip?.hidden) return;
+      coverageHelpPinned = false;
+      hideCoverageTooltip();
+    });
+    window.addEventListener('resize', positionCoverageTooltip);
+    window.addEventListener('scroll', positionCoverageTooltip, true);
     const list = document.querySelector('[data-simulator-list]');
     const totalMonthly = document.querySelector('[data-saving-monthly-total]');
     const totalYearly = document.querySelector('[data-saving-yearly-total]');

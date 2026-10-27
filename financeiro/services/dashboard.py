@@ -28,6 +28,7 @@ from financeiro.models import (
 )
 from financeiro.services.filtros_financeiros import resolver_filtros_financeiros
 from financeiro.services.cartoes_faturas import calcular_totais_parcelas
+from financeiro.services.cobertura_credito import consultar_cobertura_credito
 from financeiro.services.parcelas_futuras import contribuicoes_futuras
 from financeiro.services.saldo_contas import saldo_conta_ate
 
@@ -1444,6 +1445,15 @@ def consultar_dashboard(
     hoje = timezone.localdate()
     posicao_contas = calcular_posicao_contas(usuario, contas_filtradas, hoje, fim_exclusivo)
     limites_cartoes = calcular_limites_cartoes(usuario, filtros["cartoes_filtrados"], hoje.strftime("%Y-%m"))
+    cobertura_credito = consultar_cobertura_credito(
+        usuario,
+        data_inicial=data_inicial,
+        data_final=data_final,
+        contas=contas_filtradas,
+        cartoes=filtros["cartoes_filtrados"],
+        saldo_inicial=_saldo_contas(usuario, contas_filtradas, data_inicial),
+        natureza=natureza,
+    )
 
     simulador = _simulador_formatado(categorias_formatadas)
     base_simulador = next(
@@ -1504,6 +1514,7 @@ def consultar_dashboard(
         "resumo": resumo,
         "comparacoes_resumo": comparacoes_resumo,
         "comparativo_categorias": comparativo_categorias,
+        "cobertura_credito": cobertura_credito,
         "fluxo_caixa": {
             **fluxo,
             "saldo": saldo,

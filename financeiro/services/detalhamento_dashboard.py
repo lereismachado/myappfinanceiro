@@ -11,8 +11,10 @@ from financeiro.models import Ambito, Categoria, NaturezaEvento
 from financeiro.services.dashboard import (
     ContribuicaoAnalitica,
     _categoria_superior,
+    _saldo_contas,
     carregar_contribuicoes_dashboard,
 )
+from financeiro.services.cobertura_credito import consultar_cobertura_credito
 from financeiro.services.lancamentos import LinhaLancamento, _linha_movimento, _linha_parcela
 
 
@@ -169,6 +171,36 @@ def consultar_detalhamento_dashboard(
     scope = scope if scope in Ambito.values else "all"
     if computacao not in {"COMPUTA", "NAO_COMPUTA"}:
         raise DetalhamentoDashboardInvalido("Escopo de resultado inválido.")
+    if tipo == "credit_coverage":
+        dados = carregar_contribuicoes_dashboard(
+            usuario,
+            periodo=periodo,
+            conta_id=conta_id,
+            cartao_id=cartao_id,
+            origem="all",
+            natureza=natureza,
+            date_from=date_from,
+            date_to=date_to,
+            aplicar_composicao_dashboard=dashboard_context,
+        )
+        cobertura = consultar_cobertura_credito(
+            usuario,
+            data_inicial=dados["data_inicial"],
+            data_final=dados["data_final"],
+            contas=dados["contas_filtradas"],
+            cartoes=dados["filtros"]["cartoes_filtrados"],
+            saldo_inicial=_saldo_contas(
+                usuario,
+                dados["contas_filtradas"],
+                dados["data_inicial"],
+            ),
+            natureza=dados["natureza"],
+        )
+        return {
+            "detalhamento_cobertura": True,
+            "titulo_detalhamento": "Cobertura dos gastos do mês",
+            **cobertura,
+        }
     dados = carregar_contribuicoes_dashboard(
         usuario,
         periodo=periodo,
