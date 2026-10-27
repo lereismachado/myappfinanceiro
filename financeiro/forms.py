@@ -8,6 +8,7 @@ from django import forms
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from .models import (
     Ambito,
@@ -133,7 +134,10 @@ class ContaForm(forms.ModelForm):
     money_fields = ("saldo_inicial", "limite_credito")
 
     saldo_inicial = BRLDecimalField(label="Saldo inicial (R$)")
-    limite_credito = BRLDecimalField(label="Limite de cheque especial (R$)", required=False)
+    limite_credito = BRLDecimalField(
+        label="Limite de cheque especial (R$)",
+        min_value=Decimal("0.00"),
+    )
 
     class Meta:
         model = Conta
@@ -657,7 +661,7 @@ class LancamentoForm(forms.Form):
     situacao = forms.ChoiceField(
         label="Situação",
         choices=((Situacao.REALIZADO, "Realizado / cobrado em fatura"), (Situacao.PREVISTO, "Previsto")),
-        initial=Situacao.REALIZADO,
+        initial=Situacao.PREVISTO,
     )
     vencimento = DataBRField(label="Vencimento (para previsão)", required=False)
     ciclo = CicloField(
@@ -722,20 +726,18 @@ class LancamentoForm(forms.Form):
         self.fields["cartao"].empty_label = "Selecione o cartão"
         self.fields["categoria"].empty_label = "A classificar"
         if not self.is_bound:
-            data_inicial = None
-            if periodo and re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", periodo):
-                ano, mes = (int(parte) for parte in periodo.split("-"))
-                data_inicial = date(ano, mes, 1)
             self.initial.update(
                 {
                     "origem": "CONTA",
                     "ciclo": periodo,
                     "conta": conta_preferida,
                     "cartao": cartao_preferido,
-                    "data": data_inicial,
                 }
             )
             self.initial.update({chave: valor for chave, valor in valores_iniciais.items() if valor is not None})
+            if evento is None:
+                self.initial["data"] = timezone.localdate()
+                self.initial["situacao"] = Situacao.PREVISTO
             pessoa_inicial = self.initial.get("pessoa")
             if pessoa_inicial:
                 self.initial["pessoa_nome_livre"] = pessoa_inicial.nome

@@ -325,8 +325,20 @@ FILTROS_RETORNO_EVENTOS = (
     "analysis_nature",
     "analysis_scope",
     "group_card_invoices",
+    "card_purchase_date",
     "dashboard_context",
 )
+
+
+def _adicionar_filtros_retorno(request, parametros, nomes):
+    for nome in nomes:
+        if nome in {"date_from", "date_to"}:
+            if nome in request.GET:
+                parametros[nome] = request.GET[nome]
+            continue
+        valor = request.GET.get(nome)
+        if valor not in (None, ""):
+            parametros[nome] = valor
 
 
 def _url_retorno_lancamento(request, periodo: str, destino_padrao="eventos"):
@@ -340,15 +352,13 @@ def _url_retorno_lancamento(request, periodo: str, destino_padrao="eventos"):
         if valor and valor.isdigit():
             parametros[nome] = valor
     if destino == "dashboard":
-        for nome in ("date_from", "date_to", "origin", "nature"):
-            valor = request.GET.get(nome)
-            if valor not in (None, ""):
-                parametros[nome] = valor
+        _adicionar_filtros_retorno(
+            request,
+            parametros,
+            ("date_from", "date_to", "origin", "nature"),
+        )
     else:
-        for nome in FILTROS_RETORNO_EVENTOS:
-            valor = request.GET.get(nome)
-            if valor not in (None, ""):
-                parametros[nome] = valor
+        _adicionar_filtros_retorno(request, parametros, FILTROS_RETORNO_EVENTOS)
     return f"{reverse(destino)}?{urlencode(parametros)}"
 
 
@@ -377,6 +387,7 @@ def lancamentos(request):
             analysis_nature=request.GET.get("analysis_nature", "all"),
             analysis_scope=request.GET.get("analysis_scope", "all"),
             group_card_invoices=request.GET.get("group_card_invoices"),
+            card_purchase_date=request.GET.get("card_purchase_date"),
             dashboard_context=request.GET.get("dashboard_context") == "1",
         )
     except DetalhamentoDashboardInvalido as exc:
@@ -495,10 +506,7 @@ def lancamento_clonar(request, pk):
         valor = request.GET.get(nome)
         if valor and valor.isdigit():
             parametros[nome] = valor
-    for nome in FILTROS_RETORNO_EVENTOS:
-        valor = request.GET.get(nome)
-        if valor not in (None, ""):
-            parametros[nome] = valor
+    _adicionar_filtros_retorno(request, parametros, FILTROS_RETORNO_EVENTOS)
     return redirect(f"{reverse('evento_novo')}?{urlencode(parametros)}")
 
 

@@ -196,6 +196,34 @@ class ContaNaoCompoeDashboardTests(TestCase):
         formulario_importacao = ImportacaoOFXForm(usuario=self.usuario)
         self.assertIn(conta, formulario_importacao.fields["conta"].queryset)
 
+    def test_limite_cheque_especial_e_obrigatorio_e_aceita_zero(self):
+        dados = {
+            "nome": "Conta com limite obrigatório",
+            "banco": "",
+            "agencia": "",
+            "numero": "",
+            "titular": "",
+            "tipo": Conta.Tipo.CORRENTE,
+            "ambito": Ambito.NAO_DEFINIDO,
+            "saldo_inicial": "0,00",
+            "data_saldo_inicial": "",
+            "limite_credito": "",
+            "ativa": "on",
+        }
+
+        resposta_invalida = self.client.post(reverse("conta_nova"), dados)
+
+        self.assertEqual(resposta_invalida.status_code, 200)
+        self.assertIn("limite_credito", resposta_invalida.context["form"].errors)
+        self.assertFalse(Conta.objects.filter(nome=dados["nome"]).exists())
+
+        dados["limite_credito"] = "0,00"
+        resposta_valida = self.client.post(reverse("conta_nova"), dados)
+
+        self.assertRedirects(resposta_valida, reverse("contas"))
+        conta = Conta.objects.get(nome=dados["nome"])
+        self.assertEqual(conta.limite_credito, Decimal("0.00"))
+
     @patch("financeiro.services.dashboard.timezone.localdate", return_value=date(2026, 10, 15))
     def test_visao_geral_exclui_conta_mas_preserva_cartao_vinculado(self, _localdate):
         self.movimento(self.conta_incluida, "-10.00", categoria=self.categoria)

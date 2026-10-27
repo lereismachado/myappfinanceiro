@@ -644,7 +644,6 @@ def aplicar_sugestao_classificacao(
         item.status != ItemImportacao.Status.NOVO
         or item.acao != ItemImportacao.Acao.CRIAR
         or item.revisado_em is not None
-        or item.natureza in NATUREZAS_FORA_DO_MOTOR
     ):
         return
     protegidos = set(campos_protegidos or ())
@@ -655,29 +654,34 @@ def aplicar_sugestao_classificacao(
     if getattr(item, "_ambito_informado", False):
         protegidos.add("ambito")
 
-    resultado = avaliar_e_aplicar_regra(
-        item,
-        contexto["regras_categoria"],
-        campos_protegidos=protegidos,
-    )
-    if resultado.regra and resultado.campos_aplicados:
-        if resultado.regra.versao_motor == RegraCategoria.VersaoMotor.LEGADO:
-            motivo = f'Classificação sugerida pela regra legada “{resultado.regra.nome}”.'
-        else:
-            motivo = f'Classificação sugerida pela regra “{resultado.regra.nome}”.'
-        _adicionar_motivo(item, motivo)
+    if item.natureza not in NATUREZAS_FORA_DO_MOTOR:
+        resultado = avaliar_e_aplicar_regra(
+            item,
+            contexto["regras_categoria"],
+            campos_protegidos=protegidos,
+        )
+        if resultado.regra and resultado.campos_aplicados:
+            if resultado.regra.versao_motor == RegraCategoria.VersaoMotor.LEGADO:
+                motivo = f'Classificação sugerida pela regra legada “{resultado.regra.nome}”.'
+            else:
+                motivo = f'Classificação sugerida pela regra “{resultado.regra.nome}”.'
+            _adicionar_motivo(item, motivo)
 
-    historico = contexto.get("historico", [])
-    if item.categoria_id is None:
-        categoria_id = _sugerir_valor_historico(item, historico, "categorias")
-        if categoria_id:
-            item.categoria_id = categoria_id
-            _adicionar_motivo(item, "Categoria sugerida pelo histórico recente.")
+        historico = contexto.get("historico", [])
+        if item.categoria_id is None:
+            categoria_id = _sugerir_valor_historico(item, historico, "categorias")
+            if categoria_id:
+                item.categoria_id = categoria_id
+                _adicionar_motivo(item, "Categoria sugerida pelo histórico recente.")
+        if "ambito" not in protegidos and item.ambito in {None, "", Ambito.NAO_DEFINIDO}:
+            ambito = _sugerir_valor_historico(item, historico, "ambito")
+            if ambito:
+                item.ambito = ambito
+                _adicionar_motivo(item, "Âmbito sugerido pelo histórico recente.")
+
     if "ambito" not in protegidos and item.ambito in {None, "", Ambito.NAO_DEFINIDO}:
-        ambito = _sugerir_valor_historico(item, historico, "ambito")
-        if ambito:
-            item.ambito = ambito
-            _adicionar_motivo(item, "Âmbito sugerido pelo histórico recente.")
+        item.ambito = Ambito.PESSOAL
+        _adicionar_motivo(item, "Âmbito definido como Pessoal por padrão.")
 
 
 def aplicar_classificacao_primeira_revisao(

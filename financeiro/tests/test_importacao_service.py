@@ -223,7 +223,8 @@ class ImportacaoServiceTests(TestCase):
         item = lote.itens.get(posicao=1)
 
         self.assertIsNone(item.categoria_id)
-        self.assertEqual(item.ambito, Ambito.NAO_DEFINIDO)
+        self.assertEqual(item.ambito, Ambito.PESSOAL)
+        self.assertIn("Âmbito definido como Pessoal por padrão", item.motivo_status)
 
     def test_conta_historico_fora_do_mes_anterior_e_natureza_incompativel_nao_sugere(self):
         categoria = Categoria.objects.create(usuario=self.usuario, nome="Mercado", tipo=Categoria.Tipo.DESPESA)
@@ -239,7 +240,7 @@ class ImportacaoServiceTests(TestCase):
         item = lote.itens.get(posicao=1)
 
         self.assertIsNone(item.categoria_id)
-        self.assertEqual(item.ambito, Ambito.NAO_DEFINIDO)
+        self.assertEqual(item.ambito, Ambito.PESSOAL)
 
     def test_conta_historico_exclui_pagamento_transferencia_e_estorno_por_descricao(self):
         categoria = Categoria.objects.create(usuario=self.usuario, nome="Mercado", tipo=Categoria.Tipo.DESPESA)
@@ -251,7 +252,7 @@ class ImportacaoServiceTests(TestCase):
         item = lote.itens.get(posicao=1)
 
         self.assertIsNone(item.categoria_id)
-        self.assertEqual(item.ambito, Ambito.NAO_DEFINIDO)
+        self.assertEqual(item.ambito, Ambito.PESSOAL)
 
     def test_regra_categoria_prevalece_sobre_historico(self):
         categoria_historica = Categoria.objects.create(usuario=self.usuario, nome="Mercado", tipo=Categoria.Tipo.DESPESA)
@@ -1344,8 +1345,10 @@ class ImportacaoViewSecurityTests(TestCase):
         self.assertEqual(resposta.status_code, 200)
         item.refresh_from_db()
         self.assertEqual(item.categoria, categoria)
+        self.assertEqual(item.ambito, Ambito.PESSOAL)
         self.assertEqual(item.status, ItemImportacao.Status.NOVO)
         self.assertIn("Streaming em lote", item.motivo_status)
+        self.assertIn("Âmbito definido como Pessoal por padrão", item.motivo_status)
         self.assertEqual(resposta.json()["items"][0]["categoria"], categoria.pk)
 
     def test_revisao_ajax_persiste_e_exibe_selecao_de_titulos_multiplos(self):
@@ -1815,6 +1818,12 @@ class ImportacaoViewSecurityTests(TestCase):
         self.assertContains(resposta, 'class="pill pill-review"')
         self.assertContains(resposta, 'class="icon-button icon-open"')
         self.assertContains(resposta, '<details class="panel collapsible-panel">', html=False)
+        self.assertContains(resposta, '.import-planilha-panel{margin-top:28px}')
+        self.assertContains(
+            resposta,
+            '<details class="panel collapsible-panel import-planilha-panel">',
+            html=False,
+        )
         self.assertContains(resposta, '<details class="panel full collapsible-panel">', html=False)
         self.assertNotContains(resposta, '<details class="panel collapsible-panel" open', html=False)
         self.assertNotContains(resposta, '<details class="panel full collapsible-panel" open', html=False)

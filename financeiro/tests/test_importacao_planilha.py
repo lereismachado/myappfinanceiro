@@ -189,6 +189,22 @@ class ImportacaoPlanilhaTests(TestCase):
         self.assertEqual(CompraCartao.objects.get().evento.observacao, "")
         self.assertFalse(CompraCartao.objects.get().evento.observacao.startswith("Compra futura importada"))
 
+    def test_planilha_sem_ambito_classificado_usa_pessoal_como_padrao(self):
+        lote = self.criar_lote_planilha(
+            csv_upload(
+                conteudo=(
+                    "descricao;data_compra;valor_total;quantidade_parcelas;categoria;pessoa;ambito;observacao\n"
+                    "Compra sem âmbito;20/10/2026;25,00;1;;;;\n"
+                    "Compra com âmbito não definido;21/10/2026;30,00;1;;;NAO_DEFINIDO;\n"
+                )
+            )
+        )
+
+        itens = list(lote.itens.order_by("posicao"))
+        self.assertEqual([item.ambito for item in itens], [Ambito.PESSOAL, Ambito.PESSOAL])
+        for item in itens:
+            self.assertIn("Âmbito definido como Pessoal por padrão", item.motivo_status)
+
     def test_planilha_cartao_sugere_historico_do_ciclo_anterior(self):
         categoria = Categoria.objects.create(
             usuario=self.usuario,

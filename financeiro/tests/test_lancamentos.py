@@ -204,7 +204,7 @@ class LancamentosServiceTests(TestCase):
                 vencimento=date(2026, 10, 20),
             ),
         )
-        criar_lancamento(
+        evento_cartao = criar_lancamento(
             self.usuario,
             self.dados(
                 descricao="Compra feita em setembro",
@@ -227,6 +227,31 @@ class LancamentosServiceTests(TestCase):
             data_final="30/09/2026",
         )
         self.assertEqual(consulta_setembro["linhas"], [])
+
+        consulta_setembro_por_compra = consultar_lancamentos(
+            self.usuario,
+            periodo="2026-10",
+            data_inicial="01/09/2026",
+            data_final="30/09/2026",
+            card_purchase_date="1",
+        )
+        self.assertEqual(
+            [linha.descricao for linha in consulta_setembro_por_compra["linhas"]],
+            ["Compra feita em setembro"],
+        )
+
+        evento_cartao.compras_cartao.get().parcelas.update(data_original=None)
+        consulta_setembro_com_fallback = consultar_lancamentos(
+            self.usuario,
+            periodo="2026-10",
+            data_inicial="01/09/2026",
+            data_final="30/09/2026",
+            card_purchase_date="1",
+        )
+        self.assertEqual(
+            [linha.descricao for linha in consulta_setembro_com_fallback["linhas"]],
+            ["Compra feita em setembro"],
+        )
 
         consulta_sem_ciclo = consultar_lancamentos(
             self.usuario,
@@ -513,6 +538,18 @@ class LancamentosServiceTests(TestCase):
         self.assertEqual(consulta["linhas"], [])
 
     def test_cartao_mostra_itens_e_somente_pagamentos_realmente_vinculados(self):
+        criar_lancamento(
+            self.usuario,
+            self.dados(descricao="Despesa direta da conta"),
+        )
+        criar_lancamento(
+            self.usuario,
+            self.dados(
+                descricao="Previsão direta da conta",
+                situacao=Situacao.PREVISTO,
+                vencimento=date(2026, 10, 25),
+            ),
+        )
         compra = criar_lancamento(
             self.usuario,
             self.dados(origem="CARTAO", conta=None, cartao=self.cartao, ciclo="2026-10"),
@@ -554,6 +591,29 @@ class LancamentosServiceTests(TestCase):
         self.assertIn(compra.descricao, descricoes)
         self.assertIn("Pagamento confirmado", descricoes)
         self.assertNotIn("Pagamento da fatura apenas no texto", descricoes)
+
+        consulta_conta = consultar_lancamentos(
+            self.usuario,
+            periodo="2026-10",
+            conta_id=self.conta.pk,
+        )
+        descricoes_conta = {linha.descricao for linha in consulta_conta["linhas"]}
+        self.assertIn("Despesa direta da conta", descricoes_conta)
+        self.assertIn("Previsão direta da conta", descricoes_conta)
+        self.assertIn("Pagamento da fatura apenas no texto", descricoes_conta)
+        self.assertNotIn(compra.descricao, descricoes_conta)
+        self.assertNotIn("Pagamento confirmado", descricoes_conta)
+
+        consulta_combinada = consultar_lancamentos(
+            self.usuario,
+            periodo="2026-10",
+            conta_id=self.conta.pk,
+            cartao_id=self.cartao.pk,
+        )
+        descricoes_combinadas = {linha.descricao for linha in consulta_combinada["linhas"]}
+        self.assertIn(compra.descricao, descricoes_combinadas)
+        self.assertIn("Pagamento confirmado", descricoes_combinadas)
+        self.assertNotIn("Despesa direta da conta", descricoes_combinadas)
 
     def test_busca_e_filtros_sao_combinados_e_isolam_usuario(self):
         criar_lancamento(self.usuario, self.dados(descricao="Mercado mensal"))
@@ -855,12 +915,36 @@ class LancamentosViewTests(TestCase):
             "person": self.pessoa.pk,
             "status": Situacao.REALIZADO,
             "group_card_invoices": "1",
+            "card_purchase_date": "1",
         }
         url = f"{reverse('evento_novo')}?{urlencode({'return_to': 'eventos', **filtros})}"
 
         resposta = self.client.post(url, self.dados_post(data="2026-10-05"))
 
         self.assert_redirecionamento_com_filtros(resposta, "eventos", filtros)
+
+    def test_novo_e_edicao_preservam_intervalo_explicitamente_vazio(self):
+        filtros = {"period": "", "date_from": "", "date_to": ""}
+        url_novo = f"{reverse('evento_novo')}?{urlencode({'return_to': 'eventos', **filtros})}"
+
+        resposta_novo = self.client.post(
+            url_novo,
+            self.dados_post(descricao="Novo sem intervalo", data="2026-10-05"),
+        )
+
+        self.assert_redirecionamento_com_filtros(resposta_novo, "eventos", filtros)
+
+        evento = EventoFinanceiro.objects.get(descricao="Novo sem intervalo")
+        url_edicao = (
+            f"{reverse('evento_editar', args=[evento.pk])}"
+            f"?{urlencode({'return_to': 'eventos', **filtros})}"
+        )
+        resposta_edicao = self.client.post(
+            url_edicao,
+            self.dados_post(descricao="Editado sem intervalo", data="2026-10-06"),
+        )
+
+        self.assert_redirecionamento_com_filtros(resposta_edicao, "eventos", filtros)
 
     def test_novo_lancamento_preserva_todos_os_ciclos_e_mantem_fallback_sem_periodo(self):
         resposta_todos = self.client.post(
@@ -906,6 +990,7 @@ class LancamentosViewTests(TestCase):
             "person": self.pessoa.pk,
             "status": Situacao.REALIZADO,
             "group_card_invoices": "1",
+            "card_purchase_date": "1",
         }
         url_clonagem = (
             f"{reverse('evento_clonar', args=[evento.pk])}"
@@ -956,6 +1041,7 @@ class LancamentosViewTests(TestCase):
             "date_to": "30/11/2026",
             "origin": "CONTA",
             "status": Situacao.REALIZADO,
+            "card_purchase_date": "1",
         }
         url = (
             f"{reverse('evento_editar', args=[evento.pk])}"
@@ -1008,6 +1094,7 @@ class LancamentosViewTests(TestCase):
             "origin": "CARTAO",
             "card": cartao.pk,
             "status": Situacao.REALIZADO,
+            "card_purchase_date": "1",
         }
         url = (
             f"{reverse('parcela_cartao_editar', args=[parcela.pk])}"
@@ -1149,12 +1236,22 @@ class LancamentosViewTests(TestCase):
             reverse("eventos"),
             {"date_from": "01/11/2026", "date_to": "30/11/2026"},
         )
+        resposta_sem_intervalo = self.client.get(
+            reverse("eventos"),
+            {"date_from": "", "date_to": ""},
+        )
         conteudo = resposta_inicial.content.decode()
 
         self.assertContains(resposta_inicial, 'name="date_from" value="01/10/2026"')
         self.assertContains(resposta_inicial, 'name="date_to" value="31/10/2026"')
         self.assertContains(resposta_novembro, 'name="date_from" value="01/11/2026"')
         self.assertContains(resposta_novembro, 'name="date_to" value="30/11/2026"')
+        self.assertContains(resposta_sem_intervalo, 'name="date_from" value=""')
+        self.assertContains(resposta_sem_intervalo, 'name="date_to" value=""')
+        self.assertContains(
+            resposta_inicial,
+            f'href="{reverse("eventos")}?date_from=&amp;date_to="',
+        )
         self.assertContains(
             resposta_inicial,
             'class="temporal-control transactions-date-control" data-transactions-date-control',
@@ -1307,6 +1404,7 @@ class LancamentosViewTests(TestCase):
             "nature": NaturezaEvento.DESPESA,
             "person": self.pessoa.pk,
             "group_card_invoices": "1",
+            "card_purchase_date": "1",
         }
 
         resposta = self.client.get(reverse("eventos"), parametros)
@@ -1336,6 +1434,7 @@ class LancamentosViewTests(TestCase):
             "computes",
             "person",
             "status",
+            "card_purchase_date",
             "group_card_invoices",
         ):
             self.assertIn(f'name="{nome}"', conteudo)
@@ -1354,6 +1453,20 @@ class LancamentosViewTests(TestCase):
         self.assertContains(resposta, ">Compõe</option>")
         self.assertContains(resposta, ">Não compõe</option>")
         self.assertContains(resposta, 'placeholder="DD/MM/AAAA"', count=2)
+        self.assertTrue(resposta.context["card_purchase_date"])
+        self.assertContains(resposta, 'name="card_purchase_date" value="1" checked data-card-purchase-date')
+        self.assertIn("card_purchase_date=1", conteudo)
+
+    def test_checkbox_data_compra_inicia_desmarcado_e_submete_automaticamente(self):
+        resposta = self.client.get(reverse("eventos"))
+
+        self.assertFalse(resposta.context["card_purchase_date"])
+        self.assertContains(resposta, 'name="card_purchase_date" value="1" data-card-purchase-date')
+        self.assertNotContains(resposta, 'name="card_purchase_date" value="1" checked')
+        self.assertContains(
+            resposta,
+            "[data-card-invoice-grouping], [data-card-purchase-date]",
+        )
 
     def test_lista_colore_entradas_e_saidas(self):
         for descricao, natureza, valor in (
@@ -1454,6 +1567,94 @@ class LancamentosViewTests(TestCase):
         self.assertNotContains(resposta, "Descrição:</label>")
         self.assertContains(resposta, "Vencimento (para previsão)")
         self.assertContains(resposta, "Escolha lançamento único, compra parcelada ou recorrência.")
+
+    @patch("financeiro.forms.timezone.localdate", return_value=date(2026, 10, 26))
+    def test_novo_e_clonagem_usam_hoje_previsto_sem_alterar_edicao_ou_nova_compra(self, _localdate):
+        cartao = Cartao.objects.create(
+            usuario=self.usuario,
+            nome="Cartão para clonar",
+            conta_pagamento_padrao=self.conta,
+            dia_vencimento=10,
+        )
+        original_cartao = criar_lancamento(
+            self.usuario,
+            {
+                "descricao": "Compra original para clonar",
+                "natureza": NaturezaEvento.DESPESA,
+                "data": date(2026, 10, 5),
+                "valor": Decimal("50.00"),
+                "origem": "CARTAO",
+                "conta": None,
+                "cartao": cartao,
+                "categoria": self.categoria,
+                "pessoa": None,
+                "pessoa_nome_livre": "",
+                "ambito": Ambito.PESSOAL,
+                "situacao": Situacao.REALIZADO,
+                "vencimento": None,
+                "ciclo": "2026-11",
+                "quantidade_parcelas": 1,
+            },
+        )
+        original_conta = criar_lancamento(
+            self.usuario,
+            {
+                "descricao": "Conta para editar",
+                "natureza": NaturezaEvento.DESPESA,
+                "data": date(2026, 10, 6),
+                "valor": Decimal("40.00"),
+                "origem": "CONTA",
+                "conta": self.conta,
+                "cartao": None,
+                "categoria": self.categoria,
+                "pessoa": None,
+                "pessoa_nome_livre": "",
+                "ambito": Ambito.PESSOAL,
+                "situacao": Situacao.REALIZADO,
+                "vencimento": None,
+                "ciclo": "",
+                "quantidade_parcelas": 1,
+            },
+        )
+
+        novo = self.client.get(reverse("evento_novo"), {"period": "2026-11"})
+        form_novo = novo.context["form"]
+        self.assertEqual(form_novo.initial["data"], date(2026, 10, 26))
+        self.assertEqual(form_novo.initial["situacao"], Situacao.PREVISTO)
+        self.assertEqual(form_novo.initial["ciclo"], "2026-11")
+
+        redirecionamento = self.client.get(reverse("evento_clonar", args=[original_cartao.pk]))
+        clonagem = self.client.get(redirecionamento.url)
+        form_clonagem = clonagem.context["form"]
+        self.assertEqual(form_clonagem.initial["data"], date(2026, 10, 26))
+        self.assertEqual(form_clonagem.initial["situacao"], Situacao.PREVISTO)
+        self.assertEqual(form_clonagem.initial["cartao"], cartao)
+        self.assertEqual(form_clonagem.initial["ciclo"], "2026-11")
+
+        edicao = self.client.get(reverse("evento_editar", args=[original_conta.pk]))
+        form_edicao = edicao.context["form"]
+        self.assertEqual(form_edicao.initial["data"], date(2026, 10, 6))
+        self.assertEqual(form_edicao.initial["situacao"], Situacao.REALIZADO)
+
+        nova_compra = self.client.get(reverse("compra_cartao_nova"), {"card": cartao.pk, "cycle": "2026-11"})
+        form_nova_compra = nova_compra.context["form"]
+        self.assertEqual(form_nova_compra["situacao"].value(), Situacao.REALIZADO)
+        self.assertIsNone(form_nova_compra["data_original"].value())
+
+    @patch("financeiro.forms.timezone.localdate", return_value=date(2026, 10, 26))
+    def test_erro_no_novo_lancamento_preserva_data_e_situacao_enviadas(self, _localdate):
+        resposta = self.client.post(
+            reverse("evento_novo"),
+            self.dados_post(
+                data="2026-09-03",
+                situacao=Situacao.REALIZADO,
+                valor="",
+            ),
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta.context["form"]["data"].value(), "03/09/2026")
+        self.assertEqual(resposta.context["form"]["situacao"].value(), Situacao.REALIZADO)
 
     def test_comboboxes_exibem_categoria_filha_com_pai_e_preservam_valores(self):
         pai = Categoria.objects.create(usuario=self.usuario, nome="Receitas")

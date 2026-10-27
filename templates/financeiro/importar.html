@@ -2,6 +2,9 @@
 {% load financeiro_format %}
 {% block title %}Importar OFX | My App Financeiro{% endblock %}
 {% block content %}
+<style>
+  .import-planilha-panel{margin-top:28px}
+</style>
 <header class="top">
   <div><div class="eyebrow">Extrato bancário e fatura de cartão</div><h1>Importar e revisar OFX</h1></div>
 </header>
@@ -21,7 +24,7 @@
   </form>
   </div>
 </details>
-<details class="panel collapsible-panel">
+<details class="panel collapsible-panel import-planilha-panel">
   <summary class="collapsible-summary">
     <h2>Planejar compras futuras do cartão</h2><span class="collapsible-summary-meta">Importar planilha</span>
     <span class="collapsible-toggle" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></span>

@@ -5,7 +5,7 @@
 <style>
   .transactions-page{max-width:1600px}.transactions-page .top{margin-bottom:22px}.transactions-header-actions{display:flex;align-items:end;gap:12px}.transactions-period{display:grid;gap:5px;font-size:14px}.transactions-period select{width:auto;min-width:112px}.transactions-header-actions .button{min-height:42px;align-items:center}
   .transactions-filters-panel{margin-bottom:16px}.transactions-filters{margin:0}.transactions-filters-grid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px;align-items:end}.transactions-filters-grid label{display:grid;gap:5px;font-size:14px}.transactions-date-control{width:100%}.transactions-search{grid-column:span 2}.transactions-filter-note{font-size:14px;color:var(--muted);margin:12px 0 0}.transactions-filter-footer{display:flex;justify-content:flex-end;margin-top:12px}
-  .transactions-filters-grid .transactions-group-card{display:flex;align-items:center;gap:8px;align-self:center}.transactions-group-card input{width:auto}
+  .transactions-filters-grid .transactions-checkbox{display:flex;align-items:center;gap:8px;align-self:center}.transactions-checkbox input{width:auto}
   .transactions-totals{display:flex;justify-content:flex-end;gap:12px;margin:0 0 16px}.transactions-total-card{min-width:190px;background:white;border:1px solid var(--line);border-radius:10px;padding:12px 16px}.transactions-total-card span{display:block;color:var(--muted);font-size:13px}.transactions-total-card strong{display:block;margin-top:3px;font-size:21px;letter-spacing:-.3px}
   .transactions-list-panel{margin-top:0}.transactions-list-panel .collapsible-summary{padding-bottom:18px}.transactions-list-panel .collapsible-content{padding-top:0}
   .transactions-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}.transactions-heading h2{margin:0}.transactions-count{margin:0 0 8px}.transactions-table-wrap{overflow-x:auto}.transactions-table{min-width:920px}.transactions-table td:first-child,.transactions-table .money{white-space:nowrap}.transactions-table .description{min-width:260px;max-width:460px;overflow-wrap:anywhere}.transactions-table .source-name{min-width:170px}.transactions-table .category-cell{min-width:170px}.transactions-table .pill{display:inline-block;margin-top:5px;background:#edf2fa;color:var(--blue)}.transactions-table .row-actions{gap:12px;min-width:105px}.transactions-table .transaction-main-row.has-observation td{border-bottom:0;padding-bottom:5px}.transactions-table .transaction-observation-row td{padding-top:0}.transactions-table .transaction-observation{color:var(--muted);font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}.transactions-table .transaction-observation strong{color:var(--ink)}.transactions-table .empty{padding:28px;text-align:center;color:var(--muted)}.transactions-footer{font-size:14px;color:var(--muted);margin-top:28px}
@@ -62,10 +62,11 @@
       <label for="computesFilter">Resultado<select id="computesFilter" name="computes"><option value="all"{% if computa_resultado_filtro == "all" %} selected{% endif %}>Compõe e não compõe</option><option value="COMPUTA"{% if computa_resultado_filtro == "COMPUTA" %} selected{% endif %}>Compõe</option><option value="NAO_COMPUTA"{% if computa_resultado_filtro == "NAO_COMPUTA" %} selected{% endif %}>Não compõe</option></select></label>
       <label for="personFilter">Pessoa<select id="personFilter" name="person"><option value="all">Todas as pessoas</option>{% for pessoa in pessoas %}<option value="{{ pessoa.pk }}"{% if pessoa_filtro == pessoa.pk|stringformat:"s" %} selected{% endif %}>{{ pessoa.nome }}{% if not pessoa.ativa %} (inativa){% endif %}</option>{% endfor %}</select></label>
       <label for="statusFilter">Situação<select id="statusFilter" name="status"><option value="all"{% if situacao_filtro == "all" %} selected{% endif %}>Todas as situações</option><option value="REALIZADO"{% if situacao_filtro == "REALIZADO" %} selected{% endif %}>Realizado ou cobrado</option><option value="PREVISTO"{% if situacao_filtro == "PREVISTO" %} selected{% endif %}>Previsto</option></select></label>
-      <label class="transactions-group-card" for="groupCardInvoices"><input id="groupCardInvoices" type="checkbox" name="group_card_invoices" value="1"{% if group_card_invoices %} checked{% endif %} data-card-invoice-grouping> Agrupar lançamentos de cartão por fatura</label>
+      {% if not analysis_active %}<label class="transactions-checkbox" for="cardPurchaseDate"><input id="cardPurchaseDate" type="checkbox" name="card_purchase_date" value="1"{% if card_purchase_date %} checked{% endif %} data-card-purchase-date> Usar data da compra para cartões</label>{% endif %}
+      <label class="transactions-group-card transactions-checkbox" for="groupCardInvoices"><input id="groupCardInvoices" type="checkbox" name="group_card_invoices" value="1"{% if group_card_invoices %} checked{% endif %} data-card-invoice-grouping> Agrupar lançamentos de cartão por fatura</label>
     </div>
-    <p class="transactions-filter-note">Conta: filtra movimentos e cartões vinculados. Cartão: filtra lançamentos e pagamentos vinculados. No intervalo, conta usa a data do lançamento e cartão usa o vencimento da parcela.</p>
-    <div class="transactions-filter-footer"><a class="secondary" href="?">Limpar filtros</a></div>
+    <p class="transactions-filter-note">Conta sem cartão: mostra somente lançamentos diretos da conta. Conta e cartão: mostra os lançamentos e pagamentos vinculados ao cartão. No intervalo, conta usa a data do lançamento e cartão usa {% if card_purchase_date %}a data da compra{% else %}o vencimento da parcela{% endif %}.</p>
+    <div class="transactions-filter-footer"><a class="secondary" href="{% url 'eventos' %}?date_from=&amp;date_to=">Limpar filtros</a></div>
     </form>
     </div>
   </details>
@@ -95,7 +96,7 @@
     {% endif %}
     <p class="small transactions-count">Conta e cartão não são somados como um mesmo gasto.</p>
     {% include "financeiro/_tabela_lancamentos.html" with mostrar_acoes=True valor_indicador=analysis_active %}
-    <p class="small">No intervalo, conta usa a data do lançamento e cartão usa o vencimento da parcela. Previsto não altera saldo da conta.</p>
+    <p class="small">No intervalo, conta usa a data do lançamento e cartão usa {% if card_purchase_date %}a data da compra{% else %}o vencimento da parcela{% endif %}. Previsto não altera saldo da conta.</p>
     </div>
   </details>
   <footer class="transactions-footer">Conta corrente: movimentos do extrato. Cartão: composição por fatura. Pagamento da fatura aparece no caixa e não é contado novamente como despesa.</footer>
@@ -104,7 +105,7 @@
   (() => {
     const filterForm = document.getElementById('transactionsFilters');
     document.getElementById('periodFilter')?.addEventListener('change', () => filterForm.requestSubmit());
-    filterForm?.querySelectorAll('select:not(#periodFilter), [data-card-invoice-grouping]').forEach((field) => field.addEventListener('change', () => filterForm.requestSubmit()));
+    filterForm?.querySelectorAll('select:not(#periodFilter), [data-card-invoice-grouping], [data-card-purchase-date]').forEach((field) => field.addEventListener('change', () => filterForm.requestSubmit()));
     const transactionsDateControls = Array.from(filterForm?.querySelectorAll('[data-transactions-date-control]') || []);
     const parseDisplayDate = (value) => {
       const match = value.trim().match(/^(0[1-9]|[12]\d|3[01])\/(0[1-9]|1[0-2])\/(\d{4})$/);

@@ -201,7 +201,10 @@ def ler_compras_planilha(arquivo, usuario) -> list[dict]:
             "categoria": categoria,
             "pessoa": pessoa,
             "ambito": ambitos.get(_normalizar_texto(ambito_nome), Ambito.NAO_DEFINIDO),
-            "ambito_informado": bool(ambito_nome),
+            "ambito_informado": ambitos.get(_normalizar_texto(ambito_nome)) in {
+                Ambito.PESSOAL,
+                Ambito.PROFISSIONAL,
+            },
             "observacao": str(linha.get("observacao") or "").strip(),
             "original": {chave: _valor_json(valor) for chave, valor in linha.items()},
         })

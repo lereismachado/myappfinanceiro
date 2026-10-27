@@ -376,6 +376,7 @@ def consultar_lancamentos(
     analysis_nature="all",
     analysis_scope="all",
     group_card_invoices=False,
+    card_purchase_date=False,
     dashboard_context=False,
 ) -> dict:
     origem = origem if origem in {"all", "CONTA", "CARTAO"} else "all"
@@ -399,6 +400,7 @@ def consultar_lancamentos(
         inicio, fim = None, None
     conta = filtros["conta_selecionada"]
     cartao = filtros["cartao_selecionado"]
+    card_purchase_date = str(card_purchase_date) == "1"
     categorias = list(
         Categoria.objects.filter(usuario=usuario)
         .select_related("categoria_pai")
@@ -459,6 +461,8 @@ def consultar_lancamentos(
             movimentos = movimentos.filter(conta=conta)
         for movimento in movimentos:
             liquidacao = _liquidacao_fatura(movimento)
+            if conta and not cartao and liquidacao:
+                continue
             if cartao and (not liquidacao or liquidacao.titulo.fatura.cartao_id != cartao.pk):
                 continue
             linhas.append(_linha_movimento(movimento))
@@ -486,7 +490,7 @@ def consultar_lancamentos(
                 titulos = titulos.filter(conta=conta)
             linhas.extend(_linha_previsao(titulo) for titulo in titulos)
 
-    if origem != "CONTA":
+    if origem != "CONTA" and (not conta or cartao):
         cartoes_ids = [item.pk for item in filtros["cartoes_filtrados"]]
         parcelas = (
             ParcelaCartao.objects.filter(
@@ -503,9 +507,21 @@ def consultar_lancamentos(
         if periodo_filtro:
             parcelas = parcelas.filter(fatura__ciclo=periodo_filtro)
         if inicio:
-            parcelas = parcelas.filter(vencimento__gte=inicio)
+            if card_purchase_date:
+                parcelas = parcelas.filter(
+                    Q(data_original__gte=inicio)
+                    | Q(data_original__isnull=True, compra__data_compra__gte=inicio)
+                )
+            else:
+                parcelas = parcelas.filter(vencimento__gte=inicio)
         if fim:
-            parcelas = parcelas.filter(vencimento__lte=fim)
+            if card_purchase_date:
+                parcelas = parcelas.filter(
+                    Q(data_original__lte=fim)
+                    | Q(data_original__isnull=True, compra__data_compra__lte=fim)
+                )
+            else:
+                parcelas = parcelas.filter(vencimento__lte=fim)
         linhas.extend(_linha_parcela(parcela) for parcela in parcelas)
 
     detalhe_analitico = None
@@ -614,6 +630,8 @@ def consultar_lancamentos(
     }
     if group_card_invoices:
         parametros_filtro["group_card_invoices"] = "1"
+    if card_purchase_date:
+        parametros_filtro["card_purchase_date"] = "1"
     if dashboard_context:
         parametros_filtro["dashboard_context"] = "1"
 
@@ -651,6 +669,7 @@ def consultar_lancamentos(
         "analysis_label": detalhe_analitico["titulo_detalhamento"] if detalhe_analitico else "",
         "total_indicador": sum((linha.valor for linha in filtradas), ZERO) if detalhe_analitico else ZERO,
         "group_card_invoices": group_card_invoices,
+        "card_purchase_date": card_purchase_date,
         "dashboard_context": dashboard_context,
         "filtros_query": urlencode(parametros_filtro),
     }
