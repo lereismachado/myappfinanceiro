@@ -305,9 +305,8 @@ function setupLinkPicker(form) {
   function bloquearCategoriaVinculo(categoriaId) {
     if (!category) return;
     category.value = categoriaId ? String(categoriaId) : '';
-    category.disabled = true;
     category.dataset.linkDerived = 'true';
-    category.title = 'Categoria definida pelo lançamento vinculado.';
+    category.title = 'Categoria sugerida pelo lançamento vinculado; você pode alterá-la.';
   }
 
   function liberarCategoria({limpar = false} = {}) {

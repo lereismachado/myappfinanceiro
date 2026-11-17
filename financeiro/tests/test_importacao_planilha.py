@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.utils import timezone
 
 from financeiro.models import (
     Ambito,
@@ -144,7 +145,7 @@ class ImportacaoPlanilhaTests(TestCase):
             csv_upload(
                 conteudo=(
                     "descricao;data_compra;valor_total;quantidade_parcelas;categoria;pessoa;ambito;observacao\n"
-                    "Compra anual;20/10/2026;100,00;3;Assinaturas;;PESSOAL;futuro\n"
+                    "Compra anual 01/03;20/10/2026;429,00;3;Assinaturas;;PESSOAL;futuro\n"
                 )
             )
         )
@@ -165,8 +166,13 @@ class ImportacaoPlanilhaTests(TestCase):
         self.confirmar_planejamento(lote)
 
         compra = CompraCartao.objects.get()
-        self.assertEqual(compra.valor_total, Decimal("100.00"))
+        self.assertEqual(compra.valor_total, Decimal("1287.00"))
+        self.assertTrue(compra.valor_total_estimado)
         self.assertEqual(compra.parcelas.count(), 3)
+        self.assertEqual(
+            list(compra.parcelas.values_list("valor", flat=True)),
+            [Decimal("429.00"), Decimal("429.00"), Decimal("429.00")],
+        )
         self.assertEqual(list(compra.parcelas.values_list("fatura__ciclo", flat=True)), ["2026-11", "2026-12", "2027-01"])
         self.assertEqual(
             list(compra.parcelas.values_list("vencimento", flat=True)),
@@ -174,7 +180,48 @@ class ImportacaoPlanilhaTests(TestCase):
         )
         self.assertEqual(compra.parcelas.filter(situacao=Situacao.PREVISTO).count(), 3)
         self.assertEqual(compra.evento.situacao, Situacao.PREVISTO)
+        self.assertEqual(compra.evento.valor, Decimal("1287.00"))
         self.assertEqual(compra.evento.observacao, "futuro")
+
+    def test_planilha_com_uma_parcela_preserva_valor_informado(self):
+        lote = self.criar_lote_planilha(
+            csv_upload(
+                conteudo=(
+                    "descricao;data_compra;valor_total;quantidade_parcelas;categoria;pessoa;ambito;observacao\n"
+                    "Compra única;20/10/2026;429,00;1;Assinaturas;;PESSOAL;\n"
+                )
+            )
+        )
+
+        self.confirmar_planejamento(lote)
+
+        compra = CompraCartao.objects.get()
+        self.assertEqual(compra.valor_total, Decimal("429.00"))
+        self.assertFalse(compra.valor_total_estimado)
+        self.assertEqual(compra.parcelas.get().valor, Decimal("429.00"))
+
+    def test_planilha_negativa_repete_valor_e_preserva_estorno(self):
+        lote = self.criar_lote_planilha(
+            csv_upload(
+                conteudo=(
+                    "descricao;data_compra;valor_total;quantidade_parcelas;categoria;pessoa;ambito;observacao\n"
+                    "Estorno parcelado;20/10/2026;-10,25;3;Assinaturas;;PESSOAL;\n"
+                )
+            )
+        )
+
+        self.confirmar_planejamento(lote)
+
+        compra = CompraCartao.objects.get()
+        self.assertEqual(compra.valor_total, Decimal("30.75"))
+        self.assertEqual(compra.evento.natureza, NaturezaEvento.ESTORNO)
+        self.assertEqual(
+            list(compra.parcelas.values_list("valor", flat=True)),
+            [Decimal("10.25"), Decimal("10.25"), Decimal("10.25")],
+        )
+        self.assertFalse(
+            compra.parcelas.exclude(natureza=NaturezaEvento.ESTORNO).exists()
+        )
 
     def test_planilha_sem_observacao_nao_cria_texto_automatico(self):
         lote = self.criar_lote_planilha(
@@ -490,6 +537,49 @@ class ImportacaoPlanilhaTests(TestCase):
         self.assertEqual(item.status, ItemImportacao.Status.CONCILIADO)
         confirmar_importacao(lote.pk, self.usuario)
         self.assertEqual(CompraCartao.objects.count(), 1)
+
+    def test_planilha_aplica_categoria_revisada_na_parcela_somente_ao_confirmar(self):
+        categoria_vinculo = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Categoria do vínculo",
+            tipo=Categoria.Tipo.DESPESA,
+        )
+        categoria_revisada = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Categoria revisada",
+            tipo=Categoria.Tipo.DESPESA,
+        )
+        parcela = self.criar_parcela_existente(
+            descricao="Compra categorizada",
+            categoria=categoria_vinculo,
+        )
+        lote = self.criar_lote_planilha(
+            csv_upload(
+                conteudo=(
+                    "descricao;data_compra;valor_total;quantidade_parcelas;categoria;pessoa;ambito;observacao\n"
+                    "Compra categorizada;17/09/2026;537,50;2;;;;\n"
+                )
+            )
+        )
+        item = lote.itens.get()
+        item.acao = ItemImportacao.Acao.VINCULAR
+        item.categoria = categoria_revisada
+        selecionar_vinculo_item(
+            item,
+            self.usuario,
+            parcela_id=parcela.pk,
+            preservar_categoria=True,
+        )
+        item.revisado_em = timezone.now()
+        item.save()
+
+        parcela.refresh_from_db()
+        self.assertEqual(parcela.categoria_id, categoria_vinculo.pk)
+
+        confirmar_importacao(lote.pk, self.usuario)
+
+        parcela.refresh_from_db()
+        self.assertEqual(parcela.categoria_id, categoria_revisada.pk)
 
     def test_planilha_com_parcelas_exatas_multiplas_exige_selecao_manual(self):
         parcelas = [

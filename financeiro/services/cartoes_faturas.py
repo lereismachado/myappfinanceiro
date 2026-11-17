@@ -357,10 +357,19 @@ def _obter_fatura_editavel(usuario, cartao, ciclo: str) -> Fatura:
 @transaction.atomic
 def criar_compra_cartao(usuario, dados: dict) -> CompraCartao:
     cartao = Cartao.objects.select_for_update().get(pk=dados["cartao"].pk, usuario=usuario, ativo=True)
-    valor_total = dados["valor"]
     quantidade = dados["quantidade_parcelas"]
-    centavos = int(valor_total * 100)
-    valor_base, resto = divmod(centavos, quantidade)
+    valor_unitario_parcela = dados.get("valor_unitario_parcela", False)
+    valor_informado = dados["valor"]
+    valor_total = valor_informado * quantidade if valor_unitario_parcela else valor_informado
+    if valor_unitario_parcela:
+        valores_parcelas = [valor_informado] * quantidade
+    else:
+        centavos = int(valor_total * 100)
+        valor_base, resto = divmod(centavos, quantidade)
+        valores_parcelas = [
+            Decimal(valor_base + (1 if indice < resto else 0)) / 100
+            for indice in range(quantidade)
+        ]
 
     faturas = []
     for indice in range(quantidade):
@@ -389,12 +398,11 @@ def criar_compra_cartao(usuario, dados: dict) -> CompraCartao:
         estabelecimento=dados["descricao"][:180],
         data_compra=dados["data_original"],
         valor_total=valor_total,
-        valor_total_estimado=False,
+        valor_total_estimado=valor_unitario_parcela and quantidade > 1,
         total_parcelas=quantidade,
         chave_compra="",
     )
     for indice, fatura in enumerate(faturas):
-        valor_centavos = valor_base + (1 if indice < resto else 0)
         ParcelaCartao.objects.create(
             compra=compra,
             fatura=fatura,
@@ -408,7 +416,7 @@ def criar_compra_cartao(usuario, dados: dict) -> CompraCartao:
             ambito=dados["ambito"],
             numero=indice + 1,
             total=quantidade,
-            valor=Decimal(valor_centavos) / 100,
+            valor=valores_parcelas[indice],
             situacao=dados["situacao"] if indice == 0 else Situacao.PREVISTO,
         )
     for fatura in faturas:

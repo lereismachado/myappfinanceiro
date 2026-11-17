@@ -1683,6 +1683,7 @@ def importacao_revisao(request, pk):
                         movimento_id=form_item.cleaned_data.get("movimento_alvo_id"),
                         parcela_id=form_item.cleaned_data.get("parcela_alvo_id"),
                         remover_vinculo=form_item.cleaned_data.get("remover_vinculo", False),
+                        preservar_categoria=True,
                     )
                     if (
                         revisado_em_anterior is None

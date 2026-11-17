@@ -296,6 +296,7 @@ def criar_compra_planejada(item: ItemImportacao):
         {
             "cartao": item.importacao.cartao,
             "valor": abs(item.valor_final),
+            "valor_unitario_parcela": True,
             "quantidade_parcelas": item.total_parcelas or 1,
             "ciclo": item.importacao.ciclo,
             "data_original": item.data_final,

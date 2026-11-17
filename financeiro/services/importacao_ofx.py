@@ -169,6 +169,26 @@ def _sincronizar_categoria_vinculo(
         item.categoria_id = _categoria_id_unica_evento(item.evento)
 
 
+def _substituir_categoria_evento_revisado(item: ItemImportacao, evento: EventoFinanceiro | None) -> None:
+    """Aplica ao evento a categoria aceita na revisão, sem tocar em vínculos não revisados."""
+    if item.revisado_em is None or not evento:
+        return
+    categoria_atual_id = _categoria_id_unica_evento(evento)
+    if categoria_atual_id == item.categoria_id:
+        return
+    evento.rateios.select_for_update().all().delete()
+    if item.categoria_id:
+        RateioCategoria.objects.create(evento=evento, categoria=item.categoria, valor=evento.valor)
+
+
+def _substituir_categoria_parcela_revisada(item: ItemImportacao, parcela: ParcelaCartao) -> None:
+    """Aplica à parcela a categoria aceita na revisão da importação."""
+    if item.revisado_em is None or parcela.categoria_id == item.categoria_id:
+        return
+    parcela.categoria = item.categoria
+    parcela.save(update_fields=["categoria", "atualizado_em"])
+
+
 def _pontuacao_candidato(item: ItemImportacao, data_candidato, valor: Decimal, evento=None) -> tuple[int, list[str]]:
     pontos = 0
     motivos = []
@@ -1024,6 +1044,7 @@ def selecionar_vinculo_item(
     movimento_id=None,
     parcela_id=None,
     remover_vinculo=False,
+    preservar_categoria=False,
 ) -> ItemImportacao:
     titulos_ids = [int(titulo_id) for titulo_id in (titulos_ids or [])]
     if item.importacao.usuario_id != usuario.id:
@@ -1038,7 +1059,8 @@ def selecionar_vinculo_item(
         if (destinos_informados == destinos_atuais and titulos_ids == titulos_atuais) or (
             not any(destinos_informados) and not titulos_ids and not any(destinos_atuais) and not titulos_atuais
         ):
-            _sincronizar_categoria_vinculo(item)
+            if not preservar_categoria:
+                _sincronizar_categoria_vinculo(item)
             return item
         raise ValidationError("O item já está conciliado e seu destino não pode ser alterado.")
 
@@ -1084,7 +1106,8 @@ def selecionar_vinculo_item(
             item.status = ItemImportacao.Status.CONCILIADO
             item.motivo_status = "Títulos selecionados manualmente; as baixas serão realizadas na confirmação."
             item._titulos_multiplos_ids = [titulo.pk for titulo in titulos]
-            _sincronizar_categoria_vinculo(item, titulos=titulos)
+            if not preservar_categoria:
+                _sincronizar_categoria_vinculo(item, titulos=titulos)
             return item
     if titulo_id:
         titulo = Titulo.objects.select_related("conta", "evento").filter(pk=titulo_id, usuario=usuario).first()
@@ -1098,7 +1121,8 @@ def selecionar_vinculo_item(
         item._titulos_multiplos_ids = []
         item.status = ItemImportacao.Status.CONCILIADO
         item.motivo_status = "Título selecionado manualmente; a baixa será realizada na confirmação."
-        _sincronizar_categoria_vinculo(item)
+        if not preservar_categoria:
+            _sincronizar_categoria_vinculo(item)
         return item
 
     movimento = MovimentoConta.objects.select_related("conta", "evento").filter(pk=movimento_id).first()
@@ -1113,7 +1137,8 @@ def selecionar_vinculo_item(
         item._titulos_multiplos_ids = []
         item.status = ItemImportacao.Status.CONCILIADO
         item.motivo_status = "Movimento existente selecionado manualmente."
-        _sincronizar_categoria_vinculo(item)
+        if not preservar_categoria:
+            _sincronizar_categoria_vinculo(item)
         return item
 
     parcela = (
@@ -1131,7 +1156,8 @@ def selecionar_vinculo_item(
     item._titulos_multiplos_ids = []
     item.status = ItemImportacao.Status.CONCILIADO
     item.motivo_status = "Parcela prevista selecionada manualmente; a realização ocorrerá na confirmação."
-    _sincronizar_categoria_vinculo(item)
+    if not preservar_categoria:
+        _sincronizar_categoria_vinculo(item)
     return item
 
 
@@ -1308,6 +1334,7 @@ def confirmar_importacao(importacao_id: int, usuario) -> Importacao:
             if item.status == ItemImportacao.Status.CONCILIADO and item.parcela_id:
                 parcela = ParcelaCartao.objects.select_for_update().get(pk=item.parcela_id)
                 _validar_parcela_alvo(item, parcela)
+                _substituir_categoria_parcela_revisada(item, parcela)
             if item.status != ItemImportacao.Status.NOVO:
                 continue
             if item.natureza == NaturezaEvento.PAGAMENTO_FATURA:
@@ -1483,6 +1510,7 @@ def _confirmar_vinculos_multiplos_titulo(item: ItemImportacao) -> None:
         raise ValidationError("Um dos títulos selecionados não está mais disponível.")
     for vinculo in vinculos:
         vinculo.titulo = titulos_por_id[vinculo.titulo_id]
+    titulos = [vinculo.titulo for vinculo in vinculos]
     if vinculos and all(vinculo.liquidacao_id for vinculo in vinculos):
         liquidacoes = [
             Liquidacao.objects.select_for_update().get(pk=vinculo.liquidacao_id)
@@ -1500,6 +1528,9 @@ def _confirmar_vinculos_multiplos_titulo(item: ItemImportacao) -> None:
         ):
             raise ValidationError("Os vínculos anteriores dos títulos não correspondem à conciliação informada.")
         movimento = MovimentoConta.objects.select_related("evento").get(pk=liquidacoes[0].movimento_conta_id)
+        for titulo in titulos:
+            _substituir_categoria_evento_revisado(item, titulo.evento)
+        _substituir_categoria_evento_revisado(item, movimento.evento)
         item.evento = movimento.evento
         item.movimento_conta = movimento
         item.evidencia_liquidacao = None
@@ -1507,12 +1538,14 @@ def _confirmar_vinculos_multiplos_titulo(item: ItemImportacao) -> None:
         return
     if any(vinculo.liquidacao_id for vinculo in vinculos):
         raise ValidationError("A conciliação múltipla possui vínculos incompletos e não pode ser confirmada.")
-    titulos = [vinculo.titulo for vinculo in vinculos]
     _validar_titulos_multiplos(item, titulos)
     if any(vinculo.valor != vinculo.titulo.saldo_aberto for vinculo in vinculos):
         raise ValidationError("O saldo de um dos títulos selecionados foi alterado; revise o vínculo antes de confirmar.")
 
+    for titulo in titulos:
+        _substituir_categoria_evento_revisado(item, titulo.evento)
     evento, movimento = _movimento_importado_para_titulos(item, titulos[0], usar_dados_item=True)
+    _substituir_categoria_evento_revisado(item, evento)
     for vinculo in vinculos:
         liquidacao = liquidar_titulo(
             vinculo.titulo,
@@ -1543,6 +1576,7 @@ def _confirmar_vinculo_titulo(item: ItemImportacao) -> None:
         pk=item.titulo_alvo_id,
         usuario=item.importacao.usuario,
     )
+    _substituir_categoria_evento_revisado(item, titulo.evento)
     if item.evidencia_liquidacao_id:
         evidencia = EvidenciaLiquidacao.objects.select_for_update().get(
             pk=item.evidencia_liquidacao_id
@@ -1558,6 +1592,7 @@ def _confirmar_vinculo_titulo(item: ItemImportacao) -> None:
         ):
             raise ValidationError("A evidência anterior não corresponde ao título selecionado.")
         movimento = MovimentoConta.objects.select_related("evento").get(pk=liquidacao.movimento_conta_id)
+        _substituir_categoria_evento_revisado(item, movimento.evento)
         item.movimento_conta = movimento
         item.evento = movimento.evento
         item.motivo_status = "Registro já confirmado em outra importação."
@@ -1565,6 +1600,7 @@ def _confirmar_vinculo_titulo(item: ItemImportacao) -> None:
     _validar_titulo_alvo(item, titulo)
     valor = abs(item.valor_final or ZERO)
     evento, movimento = _movimento_importado_para_titulos(item, titulo)
+    _substituir_categoria_evento_revisado(item, evento)
     liquidacao = liquidar_titulo(
         titulo,
         movimento,
@@ -1584,6 +1620,7 @@ def _confirmar_vinculo_movimento(item: ItemImportacao) -> None:
         .get(pk=item.movimento_conta_id)
     )
     _validar_movimento_alvo(item, movimento)
+    _substituir_categoria_evento_revisado(item, movimento.evento)
     item.movimento_conta = movimento
     item.evento = movimento.evento
     if item.motivo_status != "Registro já confirmado em outra importação.":
@@ -1601,6 +1638,7 @@ def _confirmar_vinculo_parcela(item: ItemImportacao) -> int:
         chave_conciliacao=item.chave_conciliacao,
         parcela=parcela,
     ).exists()
+    _substituir_categoria_parcela_revisada(item, parcela)
     if parcela.situacao != Situacao.REALIZADO or not mesma_evidencia_confirmada:
         _validar_parcela_alvo(item, parcela)
         parcela.situacao = Situacao.REALIZADO
