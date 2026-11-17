@@ -270,6 +270,7 @@ def dashboard(request):
         origem=request.GET.get("origin", "all"),
         natureza=request.GET.get("nature", "all"),
         analysis_basis=request.GET.get("analysis_basis", "competence"),
+        incluir_previstos_conta=request.GET.get("include_account_forecasts") == "1",
     )
     orcamento_dashboard = resumir_orcamento_dashboard(
         request.user,
@@ -301,6 +302,7 @@ def dashboard_detalhamento(request):
             origem=request.GET.get("origin", "all"),
             natureza=request.GET.get("nature", "all"),
             analysis_basis=request.GET.get("analysis_basis", "competence"),
+            incluir_previstos_conta=request.GET.get("include_account_forecasts") == "1",
             computacao=request.GET.get("computes", "COMPUTA"),
             scope=request.GET.get("scope", "all"),
             dashboard_context=request.GET.get("dashboard_context") == "1",
@@ -328,6 +330,7 @@ FILTROS_RETORNO_EVENTOS = (
     "analysis_nature",
     "analysis_scope",
     "analysis_basis",
+    "include_account_forecasts",
     "group_card_invoices",
     "card_purchase_date",
     "dashboard_context",
@@ -359,7 +362,14 @@ def _url_retorno_lancamento(request, periodo: str, destino_padrao="eventos"):
         _adicionar_filtros_retorno(
             request,
             parametros,
-            ("date_from", "date_to", "origin", "nature", "analysis_basis"),
+            (
+                "date_from",
+                "date_to",
+                "origin",
+                "nature",
+                "analysis_basis",
+                "include_account_forecasts",
+            ),
         )
     else:
         _adicionar_filtros_retorno(request, parametros, FILTROS_RETORNO_EVENTOS)
@@ -391,6 +401,7 @@ def lancamentos(request):
             analysis_nature=request.GET.get("analysis_nature", "all"),
             analysis_scope=request.GET.get("analysis_scope", "all"),
             analysis_basis=request.GET.get("analysis_basis", "competence"),
+            incluir_previstos_conta=request.GET.get("include_account_forecasts") == "1",
             group_card_invoices=request.GET.get("group_card_invoices"),
             card_purchase_date=request.GET.get("card_purchase_date"),
             dashboard_context=request.GET.get("dashboard_context") == "1",

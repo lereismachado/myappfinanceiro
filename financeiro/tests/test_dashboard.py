@@ -156,6 +156,50 @@ class DashboardServiceTests(TestCase):
             situacao=Situacao.REALIZADO,
         )
 
+    def titulo_previsto(
+        self,
+        valor,
+        data_evento,
+        natureza=NaturezaEvento.DESPESA,
+        categoria=None,
+        conta=None,
+        saldo_aberto=None,
+        status=Titulo.Status.ABERTO,
+        ativo=True,
+        descricao="Previsão de conta",
+        pk=None,
+    ):
+        conta = conta or self.conta
+        valor = Decimal(valor)
+        evento = EventoFinanceiro.objects.create(
+            usuario=self.usuario,
+            natureza=natureza,
+            descricao=descricao,
+            data=data_evento,
+            vencimento=data_evento,
+            valor=valor,
+            situacao=Situacao.PREVISTO,
+        )
+        if categoria:
+            RateioCategoria.objects.create(evento=evento, categoria=categoria, valor=valor)
+        return Titulo.objects.create(
+            pk=pk,
+            usuario=self.usuario,
+            tipo=(
+                Titulo.Tipo.RECEBER
+                if natureza in {NaturezaEvento.RECEITA, NaturezaEvento.ESTORNO}
+                else Titulo.Tipo.PAGAR
+            ),
+            descricao=descricao,
+            vencimento=data_evento,
+            valor_original=valor,
+            saldo_aberto=Decimal(saldo_aberto) if saldo_aberto is not None else valor,
+            status=status,
+            conta=conta,
+            evento=evento,
+            ativo=ativo,
+        )
+
     def test_intervalo_padrao_usa_mes_corrente_e_limites_inclusivos(self):
         self.movimento("-900.00", date(2026, 9, 30))
         self.movimento("-20.00", date(2026, 10, 1))
@@ -1268,6 +1312,192 @@ class DashboardServiceTests(TestCase):
         self.assertEqual(setembro["compromissos"]["fatura_projetada"], Decimal("900.00"))
         self.assertEqual(consulta["resumo"]["faturaProjetada"], Decimal("0.00"))
 
+    def test_previsoes_conta_entram_opcionalmente_em_toda_analise(self):
+        emprestimos = Categoria.objects.create(usuario=self.usuario, nome="Empréstimos")
+        self.titulo_previsto("822.16", date(2026, 12, 10), categoria=emprestimos)
+        self.titulo_previsto("1015.66", date(2026, 12, 10), categoria=emprestimos)
+
+        padrao = consultar_dashboard(
+            self.usuario,
+            periodo="2026-12",
+            conta_id=self.conta.pk,
+            origem="account",
+        )
+        incluido = consultar_dashboard(
+            self.usuario,
+            periodo="2026-12",
+            conta_id=self.conta.pk,
+            origem="account",
+            incluir_previstos_conta=True,
+        )
+        por_compra = consultar_dashboard(
+            self.usuario,
+            periodo="2026-12",
+            conta_id=self.conta.pk,
+            origem="account",
+            analysis_basis="purchase",
+            incluir_previstos_conta=True,
+        )
+
+        self.assertEqual(padrao["resumo"]["despesas"], Decimal("0.00"))
+        self.assertEqual(padrao["fluxo_caixa"]["saidas_previstas"], Decimal("1837.82"))
+        self.assertEqual(incluido["resumo"]["despesas"], Decimal("1837.82"))
+        self.assertEqual(incluido["resumo"]["resultado"], Decimal("-1837.82"))
+        self.assertEqual(por_compra["resumo"]["despesas"], Decimal("1837.82"))
+        self.assertEqual(incluido["fluxo_caixa"], padrao["fluxo_caixa"])
+        self.assertEqual(incluido["gastos_por_categoria"][0]["valor"], Decimal("1837.82"))
+        dezembro_evolucao = next(item for item in incluido["evolucao"] if item["ciclo"] == "2026-12")
+        self.assertEqual(dezembro_evolucao["despesas"], Decimal("1837.82"))
+        linha_mensal = next(
+            item
+            for item in incluido["gastos_mensais_categoria"]["categorias"]
+            if item["categoria_id"] == emprestimos.pk and item["computacao"] == "COMPUTA"
+        )
+        dezembro_mensal = next(item for item in linha_mensal["valores"] if item["ciclo"] == "2026-12")
+        self.assertEqual(dezembro_mensal["valor"], Decimal("1837.82"))
+
+    def test_previsao_conta_usa_saldo_aberto_rateado_e_ignora_titulos_inaptos(self):
+        computavel = Categoria.objects.create(usuario=self.usuario, nome="Computável futura")
+        consultiva = Categoria.objects.create(
+            usuario=self.usuario,
+            nome="Consultiva futura",
+            computa_resultado=False,
+        )
+        evento = EventoFinanceiro.objects.create(
+            usuario=self.usuario,
+            natureza=NaturezaEvento.DESPESA,
+            descricao="Despesa parcialmente aberta",
+            data=date(2026, 12, 10),
+            vencimento=date(2026, 12, 10),
+            valor=Decimal("100.00"),
+            situacao=Situacao.PREVISTO,
+        )
+        RateioCategoria.objects.create(evento=evento, categoria=computavel, valor=Decimal("60.00"))
+        RateioCategoria.objects.create(evento=evento, categoria=consultiva, valor=Decimal("40.00"))
+        Titulo.objects.create(
+            usuario=self.usuario,
+            tipo=Titulo.Tipo.PAGAR,
+            descricao=evento.descricao,
+            vencimento=evento.vencimento,
+            valor_original=Decimal("100.00"),
+            saldo_aberto=Decimal("50.00"),
+            conta=self.conta,
+            evento=evento,
+        )
+        self.titulo_previsto("25.00", date(2026, 12, 12), natureza=NaturezaEvento.RECEITA)
+        self.titulo_previsto(
+            "900.00",
+            date(2026, 12, 15),
+            categoria=computavel,
+            status=Titulo.Status.SUSPENSO,
+        )
+        self.titulo_previsto(
+            "800.00",
+            date(2026, 12, 16),
+            categoria=computavel,
+            status=Titulo.Status.LIQUIDADO,
+        )
+        self.titulo_previsto(
+            "700.00",
+            date(2026, 12, 17),
+            categoria=computavel,
+            ativo=False,
+        )
+        realizado = self.titulo_previsto(
+            "600.00",
+            date(2026, 12, 18),
+            categoria=computavel,
+        )
+        realizado.evento.situacao = Situacao.REALIZADO
+        realizado.evento.save(update_fields=["situacao", "atualizado_em"])
+
+        consulta = consultar_dashboard(
+            self.usuario,
+            periodo="2026-12",
+            origem="account",
+            incluir_previstos_conta=True,
+        )
+
+        self.assertEqual(consulta["resumo"]["receitas"], Decimal("25.00"))
+        self.assertEqual(consulta["resumo"]["despesas"], Decimal("30.00"))
+        self.assertEqual(consulta["resumo"]["resultado"], Decimal("-5.00"))
+        self.assertEqual(consulta["gastos_por_categoria"][0]["valor"], Decimal("30.00"))
+        self.assertEqual(consulta["gastos_por_categoria_nao_computa"][0]["valor"], Decimal("20.00"))
+
+    def test_detalhamento_previsto_nao_colide_com_movimento_e_propaga_filtro(self):
+        movimento = self.movimento(
+            "-40.00",
+            data_movimento=date(2026, 12, 5),
+            categoria=self.alimentacao,
+        )
+        titulo = self.titulo_previsto(
+            "60.00",
+            date(2026, 12, 10),
+            categoria=self.alimentacao,
+            pk=movimento.pk,
+        )
+        self.assertEqual(movimento.pk, titulo.pk)
+
+        sem_previsao = consultar_detalhamento_dashboard(
+            self.usuario,
+            tipo="category",
+            valor=self.alimentacao.pk,
+            periodo="2026-12",
+            origem="account",
+        )
+        com_previsao = consultar_detalhamento_dashboard(
+            self.usuario,
+            tipo="category",
+            valor=self.alimentacao.pk,
+            periodo="2026-12",
+            origem="account",
+            incluir_previstos_conta=True,
+        )
+        listagem = consultar_lancamentos(
+            self.usuario,
+            periodo="2026-12",
+            origem="CONTA",
+            analysis_type="category",
+            analysis_value=self.alimentacao.pk,
+            incluir_previstos_conta=True,
+        )
+
+        self.assertEqual(sem_previsao["total_indicador"], Decimal("40.00"))
+        self.assertEqual(com_previsao["total_indicador"], Decimal("100.00"))
+        self.assertEqual(len(com_previsao["linhas"]), 2)
+        self.assertEqual(
+            {linha.situacao_valor for linha in com_previsao["linhas"]},
+            {Situacao.REALIZADO, Situacao.PREVISTO},
+        )
+        self.assertIn("include_account_forecasts=1", com_previsao["lancamentos_url"])
+        self.assertEqual(len(listagem["linhas"]), 2)
+        self.assertIn("include_account_forecasts=1", listagem["filtros_query"])
+
+    def test_view_dashboard_recebe_filtro_de_previsoes_e_o_preserva_nos_links(self):
+        self.titulo_previsto(
+            "75.00",
+            date(2026, 12, 10),
+            categoria=self.alimentacao,
+        )
+        self.client.force_login(self.usuario)
+
+        resposta = self.client.get(
+            reverse("dashboard"),
+            {
+                "period": "2026-12",
+                "account": self.conta.pk,
+                "origin": "account",
+                "include_account_forecasts": "1",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTrue(resposta.context["incluir_previstos_conta"])
+        self.assertEqual(resposta.context["resumo"]["despesas"], Decimal("75.00"))
+        self.assertContains(resposta, "Inclui previstos de conta")
+        self.assertContains(resposta, 'id="accountForecastFilter"')
+        self.assertContains(resposta, "include_account_forecasts=1")
+
     def test_fluxo_projetado_soma_realizados_e_previsoes(self):
         self.movimento("200.00")
         self.movimento("-50.00")
@@ -2276,7 +2506,8 @@ class DashboardServiceTests(TestCase):
         self.assertFalse(sem_limite["limite_informado"])
         self.assertIsNone(sem_limite["percentual"])
 
-    def test_limite_inclui_estimativa_de_parcela_e_tarifa(self):
+    @patch("financeiro.services.dashboard.timezone.localdate", return_value=date(2026, 10, 15))
+    def test_limite_inclui_estimativa_de_parcela_e_tarifa(self, _localdate_mock):
         self.cartao.limite = Decimal("200.00")
         self.cartao.save(update_fields=["limite"])
         evento = EventoFinanceiro.objects.create(
@@ -2411,7 +2642,8 @@ class SaldoContaPeriodoTests(TestCase):
         self.assertEqual(resumo.quantidade_movimentos, 2)
         self.assertEqual(resultado["saldo_fechamento"], Decimal("1125.00"))
 
-    def test_reprocessamento_repetido_nao_duplica_valores(self):
+    @patch("financeiro.services.saldo_contas.timezone.localdate", return_value=date(2026, 10, 15))
+    def test_reprocessamento_repetido_nao_duplica_valores(self, _localdate_mock):
         self.criar_movimento("50.00")
 
         reprocessar_saldo_conta(self.conta.pk)

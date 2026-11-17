@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 
 from django.urls import reverse
 
-from financeiro.models import Ambito, Categoria, CompraCartao, NaturezaEvento
+from financeiro.models import Ambito, Categoria, CompraCartao, NaturezaEvento, Titulo
 from financeiro.services.dashboard import (
     ContribuicaoAnalitica,
     _categoria_superior,
@@ -20,6 +20,7 @@ from financeiro.services.lancamentos import (
     _linha_compra_analitica,
     _linha_movimento,
     _linha_parcela,
+    _linha_previsao,
 )
 
 
@@ -116,7 +117,7 @@ def _contribuicao_compativel(
 def _linha_detalhamento(contribuicoes: list[ContribuicaoAnalitica]) -> LinhaLancamento | None:
     registro = contribuicoes[0].registro
     if contribuicoes[0].origem == "CONTA":
-        linha_base = _linha_movimento(registro)
+        linha_base = _linha_previsao(registro) if isinstance(registro, Titulo) else _linha_movimento(registro)
     elif isinstance(registro, CompraCartao):
         linha_base = _linha_compra_analitica(registro)
     else:
@@ -174,6 +175,8 @@ def _url_lancamentos(
         parametros["analysis_scope"] = ambito
     if dados["aplicar_composicao_dashboard"]:
         parametros["dashboard_context"] = "1"
+    if dados["incluir_previstos_conta"]:
+        parametros["include_account_forecasts"] = "1"
     if indicador["tipo"] == "essentiality":
         parametros["essentiality"] = indicador["valor"]
     elif indicador["tipo"] == "category" and indicador["categoria_id"] is not None:
@@ -200,6 +203,7 @@ def consultar_detalhamento_dashboard(
     date_from=None,
     date_to=None,
     dashboard_context=False,
+    incluir_previstos_conta=False,
 ) -> dict:
     scope = scope if scope in Ambito.values else "all"
     if computacao not in {"COMPUTA", "NAO_COMPUTA"}:
@@ -246,12 +250,13 @@ def consultar_detalhamento_dashboard(
         date_from=date_from,
         date_to=date_to,
         aplicar_composicao_dashboard=dashboard_context,
+        incluir_previstos_conta=incluir_previstos_conta,
     )
     indicador = _resolver_indicador(str(tipo or ""), str(valor or ""), dados["categorias"])
     agrupadas = defaultdict(list)
     for contribuicao in dados["contribuicoes"]:
         if _contribuicao_compativel(contribuicao, indicador, dados["categorias"], scope):
-            agrupadas[(contribuicao.origem, contribuicao.registro.pk)].append(contribuicao)
+            agrupadas[(contribuicao.origem, type(contribuicao.registro), contribuicao.registro.pk)].append(contribuicao)
 
     linhas = [
         linha
@@ -273,6 +278,7 @@ def consultar_detalhamento_dashboard(
         "analysis_value": indicador["valor"],
         "analysis_nature": dados["natureza"],
         "analysis_basis": dados["analysis_basis"],
+        "incluir_previstos_conta": dados["incluir_previstos_conta"],
         "analysis_scope": scope,
         "computes": computacao,
         "linhas": linhas,

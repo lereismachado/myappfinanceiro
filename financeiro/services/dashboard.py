@@ -65,7 +65,7 @@ NATUREZAS_DISTRIBUICAO = (
 @dataclass(frozen=True)
 class ContribuicaoAnalitica:
     origem: str
-    registro: MovimentoConta | ParcelaCartao | CompraCartao
+    registro: MovimentoConta | Titulo | ParcelaCartao | CompraCartao
     valor: Decimal
     natureza_evento: str
     categoria: Categoria | None
@@ -86,6 +86,8 @@ class ContribuicaoAnalitica:
     @property
     def data_analise(self) -> date:
         if isinstance(self.registro, MovimentoConta):
+            return self.registro.evento.data
+        if isinstance(self.registro, Titulo):
             return self.registro.evento.data
         if isinstance(self.registro, CompraCartao):
             return self.registro.data_compra
@@ -280,7 +282,7 @@ def _despesas_liquidas(analise: dict) -> Decimal:
 
 def _criar_contribuicao_analitica(
     origem: str,
-    registro: MovimentoConta | ParcelaCartao | CompraCartao,
+    registro: MovimentoConta | Titulo | ParcelaCartao | CompraCartao,
     valor: Decimal,
     natureza_evento: str,
     categoria: Categoria | None,
@@ -366,6 +368,31 @@ def _adicionar_contribuicao_analitica(
         analise["natureza"][categoria.natureza] += valor * sinal
 
 
+def _rateios_saldo_titulo(titulo: Titulo) -> list[tuple[Decimal, Categoria | None]]:
+    saldo = abs(titulo.saldo_aberto)
+    rateios = list(titulo.evento.rateios.all())
+    total_rateios = sum((abs(rateio.valor) for rateio in rateios), ZERO)
+    if not rateios or total_rateios <= ZERO:
+        return [(saldo, None)]
+
+    restante = saldo
+    distribuicao = []
+    for indice, rateio in enumerate(rateios):
+        if indice == len(rateios) - 1:
+            valor = restante
+        else:
+            valor = min(
+                (saldo * abs(rateio.valor) / total_rateios).quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP,
+                ),
+                restante,
+            )
+        restante -= valor
+        distribuicao.append((valor, rateio.categoria))
+    return distribuicao
+
+
 def gerar_contribuicoes_analiticas(
     movimentos: list[MovimentoConta],
     parcelas: list[ParcelaCartao],
@@ -376,6 +403,7 @@ def gerar_contribuicoes_analiticas(
     analysis_basis: str = "competence",
     compras: list[CompraCartao] | None = None,
     categorias: dict[int, Categoria] | None = None,
+    titulos_previstos: list[Titulo] | None = None,
 ) -> list[ContribuicaoAnalitica]:
     computacao = computacao if computacao in COMPUTACOES_ANALITICAS else "COMPUTA"
     analysis_basis = normalizar_base_analise(analysis_basis)
@@ -394,6 +422,21 @@ def gerar_contribuicoes_analiticas(
                     movimento,
                     valor,
                     movimento.evento.natureza,
+                    categoria,
+                    filtro_natureza,
+                    computacao,
+                    incluir_receitas_nao_computaveis,
+                )
+                if contribuicao:
+                    contribuicoes.append(contribuicao)
+
+        for titulo in titulos_previstos or []:
+            for valor, categoria in _rateios_saldo_titulo(titulo):
+                contribuicao = _criar_contribuicao_analitica(
+                    "CONTA",
+                    titulo,
+                    valor,
+                    titulo.evento.natureza,
                     categoria,
                     filtro_natureza,
                     computacao,
@@ -474,6 +517,32 @@ def _movimentos_conta(usuario, contas: list[Conta], inicio: date, fim: date) -> 
         )
         .select_related("conta", "evento__pessoa")
         .prefetch_related("evento__rateios__categoria")
+    )
+
+
+def _titulos_previstos_conta(
+    usuario,
+    contas: list[Conta],
+    inicio: date,
+    fim: date,
+) -> list[Titulo]:
+    if not contas:
+        return []
+    return list(
+        Titulo.objects.filter(
+            usuario=usuario,
+            conta_id__in=[conta.pk for conta in contas],
+            evento__isnull=False,
+            evento__situacao=Situacao.PREVISTO,
+            evento__data__gte=inicio,
+            evento__data__lt=fim,
+            ativo=True,
+            status=Titulo.Status.ABERTO,
+            saldo_aberto__gt=ZERO,
+        )
+        .select_related("conta", "evento__pessoa")
+        .prefetch_related("evento__rateios__categoria")
+        .order_by("evento__data", "id")
     )
 
 
@@ -966,11 +1035,17 @@ def _evolucao(
     filtro_natureza,
     categorias,
     analysis_basis="competence",
+    incluir_previstos_conta=False,
 ) -> list[dict]:
     ciclos = _ciclos_terminando(ciclo, 6)
     inicio_serie, _ = limites_periodo(ciclos[0])
     _, fim_serie = limites_periodo(ciclos[-1])
     movimentos_serie = _movimentos_conta(usuario, contas, inicio_serie, fim_serie)
+    titulos_previstos_serie = (
+        _titulos_previstos_conta(usuario, contas, inicio_serie, fim_serie)
+        if incluir_previstos_conta
+        else []
+    )
     parcelas_serie = _parcelas_cartao(parcelas_cartao, inicio_serie, fim_serie)
     compras_serie = (
         _carregar_compras_cartao(usuario, cartoes, inicio_serie, fim_serie)
@@ -985,6 +1060,7 @@ def _evolucao(
         analysis_basis=analysis_basis,
         compras=compras_serie,
         categorias=categorias,
+        titulos_previstos=titulos_previstos_serie,
     )
     evolucao = []
     for item_ciclo in ciclos:
@@ -1200,6 +1276,7 @@ def _gastos_mensais_por_categoria(
     filtro_natureza: str,
     categorias: dict[int, Categoria],
     analysis_basis: str,
+    incluir_previstos_conta: bool = False,
 ) -> dict:
     analysis_basis = normalizar_base_analise(analysis_basis)
     ciclos = _ciclos_terminando(ciclo, 12)
@@ -1216,6 +1293,11 @@ def _gastos_mensais_por_categoria(
     inicio_serie = meses[0]["data_inicial"]
     fim_serie = meses[-1]["data_final"] + timedelta(days=1)
     movimentos = _movimentos_conta(usuario, contas, inicio_serie, fim_serie)
+    titulos_previstos = (
+        _titulos_previstos_conta(usuario, contas, inicio_serie, fim_serie)
+        if incluir_previstos_conta
+        else []
+    )
     parcelas = _parcelas_cartao(parcelas_cartao, inicio_serie, fim_serie)
     compras = (
         _carregar_compras_cartao(usuario, cartoes, inicio_serie, fim_serie)
@@ -1232,6 +1314,7 @@ def _gastos_mensais_por_categoria(
             analysis_basis=analysis_basis,
             compras=compras,
             categorias=categorias,
+            titulos_previstos=titulos_previstos,
         )
         for computacao in ("COMPUTA", "NAO_COMPUTA")
     }
@@ -1704,6 +1787,7 @@ def carregar_contribuicoes_dashboard(
     date_to=None,
     aplicar_composicao_dashboard=False,
     analysis_basis="competence",
+    incluir_previstos_conta=False,
 ) -> dict:
     data_inicial, data_final = _intervalo_dashboard(date_from, date_to, periodo)
     fim_exclusivo = data_final + timedelta(days=1)
@@ -1722,6 +1806,11 @@ def carregar_contribuicoes_dashboard(
     categorias = _mapa_categorias(usuario)
     parcelas_carregadas = _carregar_parcelas_cartao(usuario, filtros["cartoes_filtrados"])
     movimentos = _movimentos_conta(usuario, contas_filtradas, data_inicial, fim_exclusivo)
+    titulos_previstos = (
+        _titulos_previstos_conta(usuario, contas_filtradas, data_inicial, fim_exclusivo)
+        if incluir_previstos_conta
+        else []
+    )
     parcelas = _parcelas_cartao(parcelas_carregadas, data_inicial, fim_exclusivo)
     compras = (
         _carregar_compras_cartao(
@@ -1747,9 +1836,11 @@ def carregar_contribuicoes_dashboard(
         "categorias": categorias,
         "parcelas_carregadas": parcelas_carregadas,
         "movimentos": movimentos,
+        "titulos_previstos": titulos_previstos,
         "parcelas": parcelas,
         "compras": compras,
         "aplicar_composicao_dashboard": aplicar_composicao_dashboard,
+        "incluir_previstos_conta": incluir_previstos_conta,
         "contribuicoes": gerar_contribuicoes_analiticas(
             movimentos,
             parcelas,
@@ -1759,6 +1850,7 @@ def carregar_contribuicoes_dashboard(
             analysis_basis=analysis_basis,
             compras=compras,
             categorias=categorias,
+            titulos_previstos=titulos_previstos,
         ),
     }
 
@@ -1773,6 +1865,7 @@ def consultar_dashboard(
     date_from=None,
     date_to=None,
     analysis_basis="competence",
+    incluir_previstos_conta=False,
 ) -> dict:
     dados_analiticos = carregar_contribuicoes_dashboard(
         usuario,
@@ -1785,6 +1878,7 @@ def consultar_dashboard(
         date_to=date_to,
         aplicar_composicao_dashboard=True,
         analysis_basis=analysis_basis,
+        incluir_previstos_conta=incluir_previstos_conta,
     )
     data_inicial = dados_analiticos["data_inicial"]
     data_final = dados_analiticos["data_final"]
@@ -1798,6 +1892,7 @@ def consultar_dashboard(
     categorias = dados_analiticos["categorias"]
     parcelas_carregadas = dados_analiticos["parcelas_carregadas"]
     movimentos_atual = dados_analiticos["movimentos"]
+    titulos_previstos_atual = dados_analiticos["titulos_previstos"]
     parcelas_atual = dados_analiticos["parcelas"]
     compras_atual = dados_analiticos["compras"]
     analise_atual = _analisar_contribuicoes(dados_analiticos["contribuicoes"], categorias)
@@ -1810,6 +1905,7 @@ def consultar_dashboard(
         analysis_basis=analysis_basis,
         compras=compras_atual,
         categorias=categorias,
+        titulos_previstos=titulos_previstos_atual,
     )
     analise_nao_computavel = _analisar_contribuicoes(
         contribuicoes_nao_computaveis,
@@ -1818,6 +1914,11 @@ def consultar_dashboard(
 
     inicio_anterior, fim_anterior = _intervalo_anterior(data_inicial, data_final)
     movimentos_anterior = _movimentos_conta(usuario, contas_filtradas, inicio_anterior, fim_anterior)
+    titulos_previstos_anterior = (
+        _titulos_previstos_conta(usuario, contas_filtradas, inicio_anterior, fim_anterior)
+        if incluir_previstos_conta
+        else []
+    )
     parcelas_anterior = _parcelas_cartao(parcelas_carregadas, inicio_anterior, fim_anterior)
     compras_anterior = (
         _carregar_compras_cartao(
@@ -1837,6 +1938,7 @@ def consultar_dashboard(
         analysis_basis=analysis_basis,
         compras=compras_anterior,
         categorias=categorias,
+        titulos_previstos=titulos_previstos_anterior,
     )
     analise_anterior = _analisar_contribuicoes(contribuicoes_anterior, categorias)
 
@@ -1844,6 +1946,7 @@ def consultar_dashboard(
     fim_comparativo_exclusivo = fim_comparativo + timedelta(days=1)
     if inicio_comparativo == inicio_anterior and fim_comparativo_exclusivo == fim_anterior:
         movimentos_comparativo = movimentos_anterior
+        titulos_previstos_comparativo = titulos_previstos_anterior
         parcelas_comparativo = parcelas_anterior
         compras_comparativo = compras_anterior
         contribuicoes_comparativo = contribuicoes_anterior
@@ -1853,6 +1956,16 @@ def consultar_dashboard(
             contas_filtradas,
             inicio_comparativo,
             fim_comparativo_exclusivo,
+        )
+        titulos_previstos_comparativo = (
+            _titulos_previstos_conta(
+                usuario,
+                contas_filtradas,
+                inicio_comparativo,
+                fim_comparativo_exclusivo,
+            )
+            if incluir_previstos_conta
+            else []
         )
         parcelas_comparativo = _parcelas_cartao(
             parcelas_carregadas,
@@ -1877,6 +1990,7 @@ def consultar_dashboard(
             analysis_basis=analysis_basis,
             compras=compras_comparativo,
             categorias=categorias,
+            titulos_previstos=titulos_previstos_comparativo,
         )
     comparativo_categorias = _comparativo_categorias_formatado(
         categorias,
@@ -1892,6 +2006,7 @@ def consultar_dashboard(
                 analysis_basis=analysis_basis,
                 compras=compras_atual,
                 categorias=categorias,
+                titulos_previstos=titulos_previstos_atual,
             ),
         },
         {
@@ -1906,6 +2021,7 @@ def consultar_dashboard(
                 analysis_basis=analysis_basis,
                 compras=compras_comparativo,
                 categorias=categorias,
+                titulos_previstos=titulos_previstos_comparativo,
             ),
         },
         data_inicial,
@@ -1992,7 +2108,7 @@ def consultar_dashboard(
     percentual_gastos_controlaveis = _percentual(max(gastos_controlaveis, ZERO), despesas_atuais)
     conta_query = filtros["conta_selecionada"].pk if filtros["conta_selecionada"] else "all"
     cartao_query = filtros["cartao_selecionado"].pk if filtros["cartao_selecionado"] else "all"
-    detalhe_base_query = urlencode({
+    detalhe_base_parametros = {
         "date_from": data_inicial.strftime("%d/%m/%Y"),
         "date_to": data_final.strftime("%d/%m/%Y"),
         "account": conta_query,
@@ -2001,8 +2117,8 @@ def consultar_dashboard(
         "nature": natureza,
         "analysis_basis": analysis_basis,
         "dashboard_context": "1",
-    })
-    lancamentos_base_query = urlencode({
+    }
+    lancamentos_base_parametros = {
         "date_from": data_inicial.strftime("%d/%m/%Y"),
         "date_to": data_final.strftime("%d/%m/%Y"),
         "account": conta_query,
@@ -2011,7 +2127,12 @@ def consultar_dashboard(
         "analysis_nature": natureza,
         "analysis_basis": analysis_basis,
         "dashboard_context": "1",
-    })
+    }
+    if incluir_previstos_conta:
+        detalhe_base_parametros["include_account_forecasts"] = "1"
+        lancamentos_base_parametros["include_account_forecasts"] = "1"
+    detalhe_base_query = urlencode(detalhe_base_parametros)
+    lancamentos_base_query = urlencode(lancamentos_base_parametros)
 
     return {
         **{chave: valor for chave, valor in filtros.items() if chave != "cartoes_filtrados"},
@@ -2023,6 +2144,7 @@ def consultar_dashboard(
         "origem_filtro": origem,
         "natureza_filtro": natureza,
         "analysis_basis": analysis_basis,
+        "incluir_previstos_conta": incluir_previstos_conta,
         "analysis_basis_label": dict(OPCOES_BASE_ANALISE)[analysis_basis],
         "analysis_bases": list(OPCOES_BASE_ANALISE),
         "evolucao_titulo": (
@@ -2088,6 +2210,7 @@ def consultar_dashboard(
             natureza,
             categorias,
             analysis_basis,
+            incluir_previstos_conta,
         ),
         "gastos_mensais_categoria": _gastos_mensais_por_categoria(
             usuario,
@@ -2099,6 +2222,7 @@ def consultar_dashboard(
             natureza,
             categorias,
             analysis_basis,
+            incluir_previstos_conta,
         ),
         "dashboard_configurado": _dashboard_configurado(usuario),
     }

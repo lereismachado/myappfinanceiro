@@ -413,6 +413,7 @@ def consultar_lancamentos(
     analysis_nature="all",
     analysis_scope="all",
     analysis_basis="competence",
+    incluir_previstos_conta=False,
     group_card_invoices=False,
     card_purchase_date=False,
     dashboard_context=False,
@@ -577,6 +578,7 @@ def consultar_lancamentos(
             origem={"CONTA": "account", "CARTAO": "card"}.get(origem, "all"),
             natureza=analysis_nature,
             analysis_basis=analysis_basis,
+            incluir_previstos_conta=incluir_previstos_conta,
             computacao=computa_resultado if computa_resultado != "all" else "COMPUTA",
             scope=analysis_scope,
             date_from=inicio,
@@ -675,6 +677,8 @@ def consultar_lancamentos(
         parametros_filtro["card_purchase_date"] = "1"
     if dashboard_context:
         parametros_filtro["dashboard_context"] = "1"
+    if incluir_previstos_conta:
+        parametros_filtro["include_account_forecasts"] = "1"
 
     return {
         **{chave: valor for chave, valor in filtros.items() if chave not in {"cartoes_filtrados", "periodo_selecionado", "periodo_rotulo"}},
@@ -708,6 +712,7 @@ def consultar_lancamentos(
         "analysis_nature": analysis_nature,
         "analysis_scope": analysis_scope,
         "analysis_basis": detalhe_analitico["analysis_basis"] if detalhe_analitico else analysis_basis,
+        "incluir_previstos_conta": incluir_previstos_conta,
         "analysis_label": detalhe_analitico["titulo_detalhamento"] if detalhe_analitico else "",
         "total_indicador": sum((linha.valor for linha in filtradas), ZERO) if detalhe_analitico else ZERO,
         "group_card_invoices": group_card_invoices,
